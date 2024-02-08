@@ -14,16 +14,17 @@ It suffices to simply choose a statistic that should be equalized across groups 
 
 ```python
 import torch.nn.functional as F
-import fairret
+from fairret.statistic import PositiveRate
+from fairret.loss import NormLoss
 
-statistic = fairret.PositiveRate()
-norm_fairret = fairret.NormLoss(statistic)
+statistic = PositiveRate()
+norm_fairret = NormLoss(statistic)
 
 def train(model, optimizer, train_loader):
      for feat, sens, target in train_loader:
             optimizer.zero_grad()
             
-            logit = model(feat).squeeze()
+            logit = model(feat)
             bce_loss = F.binary_cross_entropy_with_logits(logit, target)
             fairret_loss = norm_fairret(logit, feat, sens, target)
             loss = bce_loss + fairret_loss
