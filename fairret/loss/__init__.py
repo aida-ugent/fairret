@@ -1,4 +1,13 @@
-from .base import LOSS_BY_NAME
-from .violation import NormLoss
-from .projection import ProjectionLoss, JensenShannonProjectionLoss, TotalVariationProjectionLoss, \
+from .base import FairnessLoss
+from .violation import (
+    ViolationLoss,
+    NormLoss,
+    LSELoss
+)
+from .projection import (
+    ProjectionLoss,
+    KLProjectionLoss,
+    JensenShannonProjectionLoss,
+    TotalVariationProjectionLoss,
     SquaredEuclideanProjectionLoss
+)

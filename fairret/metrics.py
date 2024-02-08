@@ -1,7 +1,8 @@
 import torch
 import torchmetrics
 
-from .statistic import *
+from .statistic import Statistic, PositiveRate, TruePositiveRate, FalsePositiveRate, PositivePredictiveValue, \
+    FalseOmissionRate, Accuracy, FalseNegativeFalsePositiveFraction
 from .utils import safe_div
 
 
@@ -14,14 +15,11 @@ class FairMetric(torchmetrics.Metric):
 
 
 class LinearFractionalParity(FairMetric):
-    def __init__(self, statistic: Statistic, sens_dim=None, simple_sens_cols=None, normalized=True, **kwargs):
+    # TODO: write test
+    def __init__(self, statistic: Statistic, sens_dim=None, normalized=True, **kwargs):
         super().__init__(**kwargs)
         self.stat = statistic
-        self.simple_sens_cols = simple_sens_cols
         self.normalized = normalized
-
-        if simple_sens_cols is not None:
-            sens_dim = len(simple_sens_cols)
 
         self.add_state('nom', default=torch.zeros(sens_dim, dtype=torch.float), dist_reduce_fx='sum')
         self.add_state('denom', default=torch.zeros(sens_dim, dtype=torch.float), dist_reduce_fx='sum')
@@ -80,27 +78,3 @@ class OverallAccuracyEquality(LinearFractionalParity):
 class TreatmentEquality(LinearFractionalParity):
     def __init__(self, **kwargs):
         super().__init__(FalseNegativeFalsePositiveFraction(), **kwargs)
-
-
-class FairMetricCollection(torchmetrics.MetricCollection):
-    __metric_by_name = {
-        'dp': DemographicParity,
-        'eo': EqualizedOpportunity,
-        'pe': PredictiveEquality,
-        'pp': PredictiveParity,
-        'fop': FalseOmissionParity,
-        'oa': OverallAccuracyEquality,
-        'te': TreatmentEquality
-    }
-
-    def __init__(self, metrics=None, prefix=None, simple_sens_cols=None, **metric_kwargs):
-        if metrics is None:
-            metrics = self.__metric_by_name.keys()
-        metrics_dict = {name: self.__metric_by_name[name](**metric_kwargs) for name in metrics}
-        if simple_sens_cols is not None:
-            metrics_dict |= {f"{name}_simp": self.__metric_by_name[name](
-                **metric_kwargs, simple_sens_cols=simple_sens_cols
-            ) for name in metrics}
-
-        # Very weird bugs happen for compute_groups=True
-        super().__init__(metrics_dict, prefix=prefix, compute_groups=False)

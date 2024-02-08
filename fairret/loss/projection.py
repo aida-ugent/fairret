@@ -7,7 +7,8 @@ from ..statistic import LinearFractionalStatistic
 
 class ProjectionLoss(FairnessLoss):
     def __init__(self, stat: LinearFractionalStatistic,
-                 solver_cfg=None):
+                 solver_cfg=None,
+                 ensure_nonneg=True):
         super().__init__()
         self.stat = stat
         self.solver_cfg = {
@@ -20,6 +21,7 @@ class ProjectionLoss(FairnessLoss):
             if not isinstance(solver_cfg, dict):
                 raise ValueError("solver_cfg must be a dict.")
             self.solver_cfg |= solver_cfg
+        self.ensure_nonneg = ensure_nonneg
 
         self._f = None
         self._h = None
@@ -85,7 +87,7 @@ class ProjectionLoss(FairnessLoss):
                              f"{self._batch_size}!")
 
         # Expand the prediction to its Bernoulli distribution and solve the convex optimization problem
-        pred = torch.stack([1 - pred, pred], dim=-1)
+        pred = torch.cat([1 - pred, pred], dim=-1)
 
         self._h.value = pred.detach().numpy()
         self._intercept.value = intercept.detach().numpy()
@@ -108,10 +110,15 @@ class ProjectionLoss(FairnessLoss):
         projection = torch.from_numpy(projection)
         if batch_size < self._batch_size:
             projection = projection[:batch_size]
+
+        if self.ensure_nonneg:
+            # The solution should be a Bernoulli distribution, but the convex optimization might not yield one due to
+            # numerical issues. We thus ensure that the solution sums to one (at the cost of accuracy).
+            projection[:, 0] = 1 - projection[:, 1]
         return projection
 
 
-class KLProjectionLoss(ProjectionLoss, name="kl_projection"):
+class KLProjectionLoss(ProjectionLoss):
     def __init__(self,
                  stat,
                  # The KLD is not defined for distributions with probability exactly 0 or 1.
@@ -138,15 +145,15 @@ class KLProjectionLoss(ProjectionLoss, name="kl_projection"):
         # Use log-sigmoid operation for numerical stability
         log_sigmoid_fn = torch.nn.LogSigmoid()
         # Log-probabilities of the Bernoulli distribution. We use that 1 - sigmoid(x) = sigmoid(-x)
-        log_pred = torch.stack([log_sigmoid_fn(-logit), log_sigmoid_fn(logit)], dim=-1)
+        log_pred = torch.cat([log_sigmoid_fn(-logit), log_sigmoid_fn(logit)], dim=-1)
 
         # Compute the KL divergence between the prediction distribution and the closest fair distribution
         # Note that PyTorch reverses the typical KL divergence ordering!
-        dist = torch.kl_div(log_pred, solution).sum(dim=-1).mean()
+        dist = torch.nn.functional.kl_div(log_pred, solution, reduction='batchmean')
         return dist
 
 
-class JensenShannonProjectionLoss(ProjectionLoss, name="js_projection"):
+class JensenShannonProjectionLoss(ProjectionLoss):
     def __init__(self,
                  stat,
                  # The KLD is not defined for distributions with probability exactly 0 or 1.
@@ -169,16 +176,17 @@ class JensenShannonProjectionLoss(ProjectionLoss, name="js_projection"):
 
         solution = self._fit_cvxpy(pred, feat, sens, label)
         solution = solution.clamp(min=self.eps, max=1-self.eps)
-        pred = torch.stack([1 - pred, pred], dim=-1)
+
+        pred = torch.cat([1 - pred, pred], dim=-1)
         avg = (pred + solution) / 2
         log_avg = torch.log(avg)
 
-        dist = torch.kl_div(log_avg, pred).sum(dim=-1).mean() + torch.kl_div(log_avg, solution).sum(dim=-1).mean()
-        dist = dist / 2
+        dist = (torch.nn.functional.kl_div(log_avg, pred, reduction='batchmean') +
+                torch.nn.functional.kl_div(log_avg, solution, reduction='batchmean')) / 2
         return dist
 
 
-class TotalVariationProjectionLoss(ProjectionLoss, name="tv_projection"):
+class TotalVariationProjectionLoss(ProjectionLoss):
     @staticmethod
     def cvxpy_objective(f, h):
         return 1 / 2 * cp.sum(cp.abs(f - h)) / f.shape[0]
@@ -190,13 +198,13 @@ class TotalVariationProjectionLoss(ProjectionLoss, name="tv_projection"):
             pred = logit
 
         solution = self._fit_cvxpy(pred, feat, sens, label)
-        pred = torch.stack([1 - pred, pred], dim=-1)
+        pred = torch.cat([1 - pred, pred], dim=-1)
 
         dist = torch.sum(torch.abs(pred - solution), dim=-1).mean()
         return dist
 
 
-class ChiSquaredProjectionLoss(ProjectionLoss, name="chi_projection"):
+class ChiSquaredProjectionLoss(ProjectionLoss):
     @staticmethod
     def cvxpy_objective(f, h):
         return cp.sum(cp.power(f, 2) / h - 1) / f.shape[0]
@@ -208,13 +216,13 @@ class ChiSquaredProjectionLoss(ProjectionLoss, name="chi_projection"):
             pred = logit
 
         solution = self._fit_cvxpy(pred, feat, sens, label)
-        pred = torch.stack([1 - pred, pred], dim=-1)
+        pred = torch.cat([1 - pred, pred], dim=-1)
 
         dist = torch.sum(solution ** 2 / pred, dim=-1).mean()
         return dist
 
 
-class SquaredEuclideanProjectionLoss(ProjectionLoss, name="sqeuc_projection"):
+class SquaredEuclideanProjectionLoss(ProjectionLoss):
     @staticmethod
     def cvxpy_objective(f, h):
         return cp.sum((f - h) ** 2) / f.shape[0]

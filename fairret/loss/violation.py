@@ -1,5 +1,4 @@
 import torch
-import torchmetrics
 
 from .base import FairnessLoss
 from ..statistic import Statistic
@@ -31,7 +30,7 @@ class ViolationLoss(FairnessLoss):
         return loss
 
 
-class NormLoss(ViolationLoss, name="norm"):
+class NormLoss(ViolationLoss):
     def __init__(self, stat: Statistic, p=1):
         super().__init__(stat)
         self.p = p
@@ -40,7 +39,7 @@ class NormLoss(ViolationLoss, name="norm"):
         return torch.linalg.vector_norm(violation, ord=self.p, dim=-1).sum()
 
 
-class LSELoss(ViolationLoss, name="lse"):
+class LSELoss(ViolationLoss):
     def quantify_violation(self, violation):
         loss = torch.logsumexp(violation, dim=-1) - torch.log(torch.tensor(violation.shape[-1]))
         return loss.sum()

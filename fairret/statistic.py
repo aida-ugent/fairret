@@ -2,25 +2,8 @@ import torch
 
 from .utils import safe_div
 
-__all__ = ["STATISTIC_BY_NAME", "Statistic", "PositiveRate", "TruePositiveRate", "FalsePositiveRate",
-           "PositivePredictiveValue", "FalseOmissionRate", "Accuracy", "FalseNegativeFalsePositiveFraction",
-           "StackLinearFractionalStatistic"]
-
-STATISTIC_BY_NAME = {}
-
 
 class Statistic(torch.nn.Module):
-    def __init_subclass__(cls, name=None, **kwargs):
-        # Register the subclasses such that we can find them by name.
-        super().__init_subclass__(**kwargs)
-        cls.name = name
-
-        if name is None:
-            # Registering the class is optional.
-            return
-
-        STATISTIC_BY_NAME[name] = cls
-
     def forward(self, feat, sens, label, pred):
         raise NotImplementedError
 
@@ -39,11 +22,11 @@ class LinearFractionalStatistic(Statistic):
         raise NotImplementedError
 
     def nom(self, pred, feat, sens, label):
-        nom = sens * (self.nom_intercept(feat, label) + self.nom_slope(feat, label) * pred).unsqueeze(-1)
+        nom = sens * (self.nom_intercept(feat, label) + self.nom_slope(feat, label) * pred)
         return nom.sum(dim=0)
 
     def denom(self, pred, feat, sens, label):
-        denom = sens * (self.denom_intercept(feat, label) + self.denom_slope(feat, label) * pred).unsqueeze(-1)
+        denom = sens * (self.denom_intercept(feat, label) + self.denom_slope(feat, label) * pred)
         return denom.sum(dim=0)
 
     def forward(self, pred, feat, sens, label):
@@ -52,65 +35,65 @@ class LinearFractionalStatistic(Statistic):
         return safe_div(nom, denom)
 
     def overall_statistic(self, pred, feat, label):
-        return self.forward(pred, feat, torch.tensor([1.]), label)
+        return self.forward(pred, feat, 1., label)
 
     def linearize(self, feat, sens, label, c):
         intercept = self.nom_intercept(feat, label) - self.denom_intercept(feat, label) * c
-        intercept = sens * intercept.unsqueeze(-1)
+        intercept = sens * intercept
         slope = self.nom_slope(feat, label) - self.denom_slope(feat, label) * c
-        slope = sens * slope.unsqueeze(-1)
+        slope = sens * slope
         return intercept, slope
 
 
-class StackLinearFractionalStatistic(LinearFractionalStatistic):
-    def __init__(self, stats):
-        super().__init__()
+# class StackLinearFractionalStatistic(LinearFractionalStatistic):
+#     def __init__(self, stats):
+#         super().__init__()
+#
+#         if not isinstance(stats, (list, tuple)) or len(stats) == 0 or \
+#                 not all(isinstance(stat, LinearFractionalStatistic) for stat in stats):
+#             raise ValueError(f"Expected a non-empty list of statistics, got {stats}.")
+#         self.stats = stats
+#
+#     def nom_intercept(self, feat, label):
+#         return torch.stack([stat.nom_intercept(feat, label) for stat in self.stats], dim=-1)
+#
+#     def nom_slope(self, feat, label):
+#         return torch.stack([stat.nom_slope(feat, label) for stat in self.stats], dim=-1)
+#
+#     def denom_intercept(self, feat, label):
+#         return torch.stack([stat.denom_intercept(feat, label) for stat in self.stats], dim=-1)
+#
+#     def denom_slope(self, feat, label):
+#         return torch.stack([stat.denom_slope(feat, label) for stat in self.stats], dim=-1)
+#
+#     def nom(self, pred, feat, sens, label):
+#         return super().nom(pred.unsqueeze(1), feat, sens.unsqueeze(1), label)
+#
+#     def denom(self, pred, feat, sens, label):
+#         return super().denom(pred.unsqueeze(1), feat, sens.unsqueeze(1), label)
+#
+#     def linearize(self, feat, sens, label, c):
+#         intercept, slope = super().linearize(feat, sens.unsqueeze(1), label, c.squeeze())
+#         return intercept.flatten(start_dim=1), slope.flatten(start_dim=1)
 
-        if not isinstance(stats, (list, tuple)) or len(stats) == 0 or \
-                not all(isinstance(stat, LinearFractionalStatistic) for stat in stats):
-            raise ValueError(f"Expected a non-empty list of statistics, got {stats}.")
-        self.stats = stats
 
+class PositiveRate(LinearFractionalStatistic):
     def nom_intercept(self, feat, label):
-        return torch.stack([stat.nom_intercept(feat, label) for stat in self.stats], dim=-1)
+        return torch.zeros(label.shape)
 
     def nom_slope(self, feat, label):
-        return torch.stack([stat.nom_slope(feat, label) for stat in self.stats], dim=-1)
+        return torch.ones(label.shape)
 
     def denom_intercept(self, feat, label):
-        return torch.stack([stat.denom_intercept(feat, label) for stat in self.stats], dim=-1)
+        return torch.ones(label.shape)
 
     def denom_slope(self, feat, label):
-        return torch.stack([stat.denom_slope(feat, label) for stat in self.stats], dim=-1)
-
-    def nom(self, pred, feat, sens, label):
-        return super().nom(pred.unsqueeze(1), feat, sens.unsqueeze(1), label)
-
-    def denom(self, pred, feat, sens, label):
-        return super().denom(pred.unsqueeze(1), feat, sens.unsqueeze(1), label)
-
-    def linearize(self, feat, sens, label, c):
-        intercept, slope = super().linearize(feat, sens.unsqueeze(1), label, c.squeeze())
-        return intercept.flatten(start_dim=1), slope.flatten(start_dim=1)
+        return torch.zeros(label.shape)
 
 
-class PositiveRate(LinearFractionalStatistic, name="pr"):
+class TruePositiveRate(LinearFractionalStatistic):
     def nom_intercept(self, feat, label):
-        return torch.zeros(feat.shape[0])
-
-    def nom_slope(self, feat, label):
-        return torch.ones(feat.shape[0])
-
-    def denom_intercept(self, feat, label):
-        return torch.ones(feat.shape[0])
-
-    def denom_slope(self, feat, label):
-        return torch.zeros(feat.shape[0])
-
-
-class TruePositiveRate(LinearFractionalStatistic, name="tpr"):
-    def nom_intercept(self, feat, label):
-        return torch.zeros(feat.shape[0])
+        return torch.zeros(label.shape)
 
     def nom_slope(self, feat, label):
         return label
@@ -119,12 +102,12 @@ class TruePositiveRate(LinearFractionalStatistic, name="tpr"):
         return label
 
     def denom_slope(self, feat, label):
-        return torch.zeros(feat.shape[0])
+        return torch.zeros(label.shape)
 
 
-class FalsePositiveRate(LinearFractionalStatistic, name="fpr"):
+class FalsePositiveRate(LinearFractionalStatistic):
     def nom_intercept(self, feat, label):
-        return torch.zeros(feat.shape[0])
+        return torch.zeros(label.shape)
 
     def nom_slope(self, feat, label):
         return 1 - label
@@ -133,24 +116,24 @@ class FalsePositiveRate(LinearFractionalStatistic, name="fpr"):
         return 1 - label
 
     def denom_slope(self, feat, label):
-        return torch.zeros(feat.shape[0])
+        return torch.zeros(label.shape)
 
 
-class PositivePredictiveValue(LinearFractionalStatistic, name="ppv"):
+class PositivePredictiveValue(LinearFractionalStatistic):
     def nom_intercept(self, feat, label):
-        return torch.zeros(feat.shape[0])
+        return torch.zeros(label.shape)
 
     def nom_slope(self, feat, label):
         return label
 
     def denom_intercept(self, feat, label):
-        return torch.zeros(feat.shape[0])
+        return torch.zeros(label.shape)
 
     def denom_slope(self, feat, label):
-        return torch.ones(feat.shape[0])
+        return torch.ones(label.shape)
 
 
-class FalseOmissionRate(LinearFractionalStatistic, name="for"):
+class FalseOmissionRate(LinearFractionalStatistic):
     def nom_intercept(self, feat, label):
         return label
 
@@ -158,13 +141,13 @@ class FalseOmissionRate(LinearFractionalStatistic, name="for"):
         return -label
 
     def denom_intercept(self, feat, label):
-        return torch.ones(feat.shape[0])
+        return torch.ones(label.shape)
 
     def denom_slope(self, feat, label):
-        return -torch.ones(feat.shape[0])
+        return -torch.ones(label.shape)
 
 
-class Accuracy(LinearFractionalStatistic, name="acc"):
+class Accuracy(LinearFractionalStatistic):
     def nom_intercept(self, feat, label):
         return 1 - label
 
@@ -172,13 +155,13 @@ class Accuracy(LinearFractionalStatistic, name="acc"):
         return 2 * label - 1
 
     def denom_intercept(self, feat, label):
-        return torch.ones(feat.shape[0])
+        return torch.ones(label.shape)
 
     def denom_slope(self, feat, label):
-        return torch.zeros(feat.shape[0])
+        return torch.zeros(label.shape)
 
 
-class FalseNegativeFalsePositiveFraction(LinearFractionalStatistic, name="fn_fp"):
+class FalseNegativeFalsePositiveFraction(LinearFractionalStatistic):
     def nom_intercept(self, feat, label):
         return label
 
@@ -186,7 +169,9 @@ class FalseNegativeFalsePositiveFraction(LinearFractionalStatistic, name="fn_fp"
         return -label
 
     def denom_intercept(self, feat, label):
-        return torch.ones(feat.shape[0]) / feat.shape[0]
+        # Small value to avoid numerical issues in initial experiments. Now handled more gracefully.
+        # return torch.ones(feat.shape[0]) / feat.shape[0]
+        return torch.zeros(label.shape)
 
     def denom_slope(self, feat, label):
         return 1 - label
