@@ -9,9 +9,9 @@ from fairret.loss import (NormLoss, LSELoss, KLProjectionLoss, JensenShannonProj
 @pytest.fixture
 def easy_data():
     return (
-        torch.tensor([[1., 2.], [3., 4.], [5., 6.], [7., 8.]]),  # feat (3, 2)
-        torch.tensor([[1., 0.], [1., 0.], [0., 1.], [0., 1.]]),  # sens (3, 2)
-        torch.tensor([[0.], [1.], [0.], [1.]])  # label (3,)
+        torch.tensor([[1., 2.], [3., 4.], [5., 6.], [7., 8.]]),  # feat (4, 2)
+        torch.tensor([[1., 0.], [1., 0.], [0., 1.], [0., 1.]]),  # sens (4, 2)
+        torch.tensor([[0.], [1.], [0.], [1.]])  # label (4,)
     )
 
 

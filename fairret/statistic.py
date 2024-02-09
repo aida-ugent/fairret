@@ -4,7 +4,9 @@ from .utils import safe_div
 
 
 class Statistic(torch.nn.Module):
-    def forward(self, feat, sens, label, pred):
+    # A Statistic really only needs to be callable through this argument interface. By inheriting from a
+    # torch.nn.Module, the __call__ method is already implemented and will call the forward method below.
+    def forward(self, pred, feat, sens, label):
         raise NotImplementedError
 
 

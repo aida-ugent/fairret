@@ -8,10 +8,10 @@ from fairret.statistic import (PositiveRate, TruePositiveRate, FalsePositiveRate
 @pytest.fixture
 def easy_data():
     return (
-        torch.tensor([[0.2], [0.6], [0.9], [0.8]]),  # pred (3,)
-        torch.tensor([[1., 2.], [3., 4.], [5., 6.], [7., 8.]]),  # feat (3, 2)
-        torch.tensor([[1., 0.], [1., 0.], [0., 1.], [0., 1.]]),  # sens (3, 2)
-        torch.tensor([[0.], [1.], [0.], [1.]])  # label (3,)
+        torch.tensor([[0.2], [0.6], [0.9], [0.8]]),  # pred (4,)
+        torch.tensor([[1., 2.], [3., 4.], [5., 6.], [7., 8.]]),  # feat (4, 2)
+        torch.tensor([[1., 0.], [1., 0.], [0., 1.], [0., 1.]]),  # sens (4, 2)
+        torch.tensor([[0.], [1.], [0.], [1.]])  # label (4,)
     )
 
 
