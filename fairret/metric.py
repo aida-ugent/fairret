@@ -22,6 +22,11 @@ class Parity(torchmetrics.Metric):
 
 
 class LinearFractionalParity(Parity):
+    # TODO: warn about compute groups.
+    is_differentiable = True
+    higher_is_better = False
+    full_state_update = False
+
     def __init__(self, statistic: LinearFractionalStatistic, sens_dim: int, gap_fn: callable = abs_diff_norm, **kwargs):
         super().__init__(**kwargs)
         self.stat = statistic

@@ -1,0 +1,23 @@
+[project]
+name = "fairret"
+version = "0.1"
+description = "A fairness library in PyTorch."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+keywords = ["fairness", "machine-learning", "ai", "artificial-intelligence", "pytorch", "deep-learning", "python",
+  "bias", "fairness-ai", "fairness-ml"]
+authors = [
+  {name = "Maarten Buyl", email = "maarten.buyl@ugent.be"}
+  # More to add later!
+]
+dependencies = [
+  "torch",
+  "numpy",
+   "cvxpy",  # Ideally would be optional and checked at runtime
+   "torchmetrics",  # Ideally would be optional and checked at runtime
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
