@@ -6,16 +6,16 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
 keywords = ["fairness", "machine-learning", "ai", "artificial-intelligence", "pytorch", "deep-learning", "python",
-  "bias", "fairness-ai", "fairness-ml"]
+    "bias", "fairness-ai", "fairness-ml"]
 authors = [
-  {name = "Maarten Buyl", email = "maarten.buyl@ugent.be"}
-  # More to add later!
+    {name = "Maarten Buyl", email = "maarten.buyl@ugent.be"}
+    # More to add later!
 ]
 dependencies = [
-  "torch",
-  "numpy",
-   "cvxpy",  # Ideally would be optional and checked at runtime
-   "torchmetrics",  # Ideally would be optional and checked at runtime
+    "torch",
+    "numpy",
+    "cvxpy",  # Ideally would be optional and checked at runtime
+    "torchmetrics",  # Ideally would be optional and checked at runtime
 ]
 
 [build-system]
