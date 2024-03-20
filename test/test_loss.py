@@ -44,7 +44,7 @@ def test_loss(loss_cls, easy_data, net, stat):
     # Calculate loss multiple times as some losses are stateful
     for _ in range(nb_tries):
         logit = net(feat)
-        loss = fairret(logit, feat, sens, label)
+        loss = fairret(logit, sens, label)
         assert loss.item() >= 0  # fairret should be nonnegative
         loss.backward()
         for p in net.parameters():

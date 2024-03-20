@@ -14,7 +14,7 @@ def abs_diff_norm(stats, overall_stat):
 
 
 class Parity(torchmetrics.Metric):
-    def update(self, pred, feat, sens, label):
+    def update(self, pred, sens, stat_args):
         raise NotImplementedError
 
     def compute(self):
@@ -38,14 +38,14 @@ class LinearFractionalParity(Parity):
         self.add_state('overall_nom', default=torch.zeros(1, dtype=torch.float), dist_reduce_fx='sum')
         self.add_state('overall_denom', default=torch.zeros(1, dtype=torch.float), dist_reduce_fx='sum')
 
-    def update(self, pred, feat, sens, label):
+    def update(self, pred, sens, *stat_args, **stat_kwargs):
         if sens.shape[1] != self.sens_dim:
             raise ValueError(f"Expected sens to have shape (N, {self.sens_dim}), got {sens.shape}")
 
-        self.nom += self.stat.nom(pred, feat, sens, label)
-        self.denom += self.stat.denom(pred, feat, sens, label)
-        self.overall_nom += self.stat.nom(pred, feat, 1., label)
-        self.overall_denom += self.stat.denom(pred, feat, 1., label)
+        self.nom += self.stat.nom(pred, sens, *stat_args, **stat_kwargs)
+        self.denom += self.stat.denom(pred, sens, *stat_args, **stat_kwargs)
+        self.overall_nom += self.stat.nom(pred, 1., *stat_args, **stat_kwargs)
+        self.overall_denom += self.stat.denom(pred, 1., *stat_args, **stat_kwargs)
 
     def compute(self):
         stats = safe_div(self.nom, self.denom)

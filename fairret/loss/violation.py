@@ -1,7 +1,7 @@
 import torch
 
 from .base import FairnessLoss
-from ..statistic import Statistic
+from ..statistic import Statistic, LinearFractionalStatistic
 
 
 class ViolationLoss(FairnessLoss):
@@ -12,15 +12,22 @@ class ViolationLoss(FairnessLoss):
     def quantify_violation(self, violation):
         raise NotImplementedError
 
-    def forward(self, logit, feat, sens, label, as_logit=True, **kwargs):
+    def forward(self, logit, sens, *stat_args, as_logit=True, c=None, **stat_kwargs):
         if as_logit:
             pred = torch.sigmoid(logit)
         else:
             pred = logit
 
-        c = self.stat.overall_statistic(pred, feat, label)
+        if c is None:
+            if isinstance(self.stat, LinearFractionalStatistic):
+                if c is None:
+                    c = self.stat.overall_statistic(pred, *stat_args, **stat_kwargs)
+            else:
+                raise ValueError(f"Was initialized with a statistic of type {self.stat.__class__}, but no 'c' was "
+                                 f"given. Either set the statistic to a subclass of LinearFractionalStatistic or provide"
+                                 f"a value for 'c'.")
 
-        stats = self.stat(pred, feat, sens, label)
+        stats = self.stat(pred, sens, *stat_args, **stat_kwargs)
         if c.item() == 0.:
             loss = stats.sum()
             return loss

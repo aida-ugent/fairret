@@ -1,4 +1,6 @@
 .idea/
+dist/
+examples/data/
 *.sh
 *.DS_Store
 *.zip

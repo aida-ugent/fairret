@@ -33,7 +33,7 @@ class ProjectionLoss(FairnessLoss):
     def cvxpy_objective(f, h):
         raise NotImplementedError
 
-    def forward(self, pred, feat, sens, label, **kwargs):
+    def forward(self, pred, sens, *stat_args, **kwargs):
         raise NotImplementedError
 
     def _init_cvxpy(self, batch_size, constraint_dim):
@@ -57,15 +57,15 @@ class ProjectionLoss(FairnessLoss):
     def _batch_size(self):
         return self._h.shape[0]  # h parameter in cvxpy Problem definition
 
-    def _fit_cvxpy(self, pred, feat, sens, label):
+    def _fit_cvxpy(self, pred, sens, *stat_args, **stat_kwargs):
         pred = pred.detach()
 
         # Constrain the fair set to those where the statistics match c.
         # Here, we choose c as the overall statistic of the predictions.
-        c = self.stat.overall_statistic(pred, feat, label)
+        c = self.stat.overall_statistic(pred, *stat_args, **stat_kwargs)
 
         # Based on c and the specific statistic, we precompute the intercept and slope of the linear fairness constraint
-        intercept, slope = self.stat.linearize(feat, sens, label, c)
+        intercept, slope = self.stat.fixed_constraint(c, sens, *stat_args, **stat_kwargs)
         intercept = intercept.sum(dim=0)
 
         # If this is the first time the loss is called, initialize the convex optimization problem
@@ -132,14 +132,14 @@ class KLProjectionLoss(ProjectionLoss):
     def cvxpy_objective(f, h):
         return cp.sum(cp.kl_div(f, h)) / f.shape[0]
 
-    def forward(self, logit, feat, sens, label, as_logit=True, **kwargs):
+    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
         if as_logit:
             pred = torch.sigmoid(logit)
         else:
             pred = logit
             logit = torch.logit(pred)
 
-        solution = self._fit_cvxpy(pred, feat, sens, label)
+        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
         solution = solution.clamp(min=self.eps, max=1-self.eps)
 
         # Use log-sigmoid operation for numerical stability
@@ -168,13 +168,13 @@ class JensenShannonProjectionLoss(ProjectionLoss):
         avg = (f + h) / 2
         return cp.sum(cp.kl_div(f, avg)) + cp.sum(cp.kl_div(h, avg)) / (2 * f.shape[0])
 
-    def forward(self, logit, feat, sens, label, as_logit=True, **kwargs):
+    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
         if as_logit:
             pred = torch.sigmoid(logit)
         else:
             pred = logit
 
-        solution = self._fit_cvxpy(pred, feat, sens, label)
+        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
         solution = solution.clamp(min=self.eps, max=1-self.eps)
 
         pred = torch.cat([1 - pred, pred], dim=-1)
@@ -191,13 +191,13 @@ class TotalVariationProjectionLoss(ProjectionLoss):
     def cvxpy_objective(f, h):
         return 1 / 2 * cp.sum(cp.abs(f - h)) / f.shape[0]
 
-    def forward(self, logit, feat, sens, label, as_logit=True, **kwargs):
+    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
         if as_logit:
             pred = torch.sigmoid(logit)
         else:
             pred = logit
 
-        solution = self._fit_cvxpy(pred, feat, sens, label)
+        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
         pred = torch.cat([1 - pred, pred], dim=-1)
 
         dist = torch.sum(torch.abs(pred - solution), dim=-1).mean()
@@ -209,13 +209,13 @@ class ChiSquaredProjectionLoss(ProjectionLoss):
     def cvxpy_objective(f, h):
         return cp.sum(cp.power(f, 2) / h - 1) / f.shape[0]
 
-    def forward(self, logit, feat, sens, label, as_logit=True, **kwargs):
+    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
         if as_logit:
             pred = torch.sigmoid(logit)
         else:
             pred = logit
 
-        solution = self._fit_cvxpy(pred, feat, sens, label)
+        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
         pred = torch.cat([1 - pred, pred], dim=-1)
 
         dist = torch.sum(solution ** 2 / pred, dim=-1).mean()
@@ -227,13 +227,13 @@ class SquaredEuclideanProjectionLoss(ProjectionLoss):
     def cvxpy_objective(f, h):
         return cp.sum((f - h) ** 2) / f.shape[0]
 
-    def forward(self, logit, feat, sens, label, as_logit=True, **kwargs):
+    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
         if as_logit:
             pred = torch.sigmoid(logit)
         else:
             pred = logit
 
-        solution = self._fit_cvxpy(pred, feat, sens, label)
+        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
         solution = solution[:, 1]
 
         dist = ((pred - solution) ** 2).mean()

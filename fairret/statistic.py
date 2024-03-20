@@ -1,179 +1,374 @@
+import abc
+from typing import Any, Tuple
 import torch
 
 from .utils import safe_div
 
 
-class Statistic(torch.nn.Module):
-    # A Statistic really only needs to be callable through this argument interface. By inheriting from a
-    # torch.nn.Module, the __call__ method is already implemented and will call the forward method below.
-    def forward(self, pred, feat, sens, label):
+class Statistic(abc.ABC, torch.nn.Module):
+    """
+    Abstract base class for a statistic.
+
+    As a subclass of torch.nn.Module, it should implement the forward method with the
+    'forward(self, pred, sens, *stat_args, **stat_kwargs)' signature.
+    """
+
+    @abc.abstractmethod
+    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
+        """
+        Compute the statistic for a batch of `N` samples for each sensitive feature.
+
+        Args:
+            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
+                classification or regression, it can be :math:`C = 1`.
+            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            stat_args: Any further arguments used to compute the statistic.
+            stat_kwargs: Any keyword arguments used to compute the statistic.
+
+        Returns:
+            torch.Tensor: Shape :math:`(S)`.
+        """
         raise NotImplementedError
 
 
 class LinearFractionalStatistic(Statistic):
-    def nom_intercept(self, feat, label):
+    """
+    Absract base class for a linear-fractional Statistic. This is a Statistic that is computed as the ratio between two
+    linear functions over the predictions.
+
+    A LinearFractionalStatistic is constructed in a canonical form by defining the intercept and slope of the numerator
+    and denominator linear functions, i.e. the functions nom_intercept, nom_slope, denom_intercept, and denom_slope.
+    Each subclass must implement these functions (using any signature).
+
+    The statistic is then computed as :math:`\frac{\text{nom_intercept} + \text{nom_slope} \cdot
+    \text{pred}}{\text{denom_intercept} + \text{denom_slope} \cdot \text{pred}}`.
+    """
+
+    @abc.abstractmethod
+    def nom_intercept(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        """
+        Compute the intercept of the numerator in the canonical form of the linear-fractional statistic.
+
+        Args:
+            *args: Any arguments.
+            **kwargs: Any keyword arguments.
+
+        Returns:
+            torch.Tensor: Shape of the predictions tensor or a shape suitable for broadcasting (see 
+            https://pytorch.org/docs/stable/notes/broadcasting.html).
+        """
         raise NotImplementedError
 
-    def nom_slope(self, feat, label):
+    @abc.abstractmethod
+    def nom_slope(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        """
+        Compute the slope of the numerator in the canonical form of the linear-fractional statistic. This will be
+        multiplied by the prediction tensor.
+
+        Args:
+            *args: Any arguments.
+            **kwargs: Any keyword arguments.
+
+        Returns:
+            torch.Tensor: Shape of the predictions tensor or a shape suitable for broadcasting (see 
+            https://pytorch.org/docs/stable/notes/broadcasting.html).
+        """
         raise NotImplementedError
 
-    def denom_intercept(self, feat, label):
+    @abc.abstractmethod
+    def denom_intercept(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        """
+        Compute the intercept of the denominator in the canonical form of the linear-fractional statistic.
+
+        Args:
+            *args: Any arguments.
+            **kwargs: Any keyword arguments.
+
+        Returns:
+            torch.Tensor: Shape of the predictions tensor or a shape suitable for broadcasting (see 
+            https://pytorch.org/docs/stable/notes/broadcasting.html).
+        """
         raise NotImplementedError
 
-    def denom_slope(self, feat, label):
+    @abc.abstractmethod
+    def denom_slope(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        """
+        Compute the slope of the denominator in the canonical form of the linear-fractional statistic. This will be
+        multiplied by the prediction tensor.
+
+        Args:
+            *args: Any arguments.
+            **kwargs: Any keyword arguments.
+
+        Returns:
+            torch.Tensor: Shape of the predictions tensor or a shape suitable for broadcasting (see 
+            https://pytorch.org/docs/stable/notes/broadcasting.html).
+        """
         raise NotImplementedError
 
-    def nom(self, pred, feat, sens, label):
-        nom = sens * (self.nom_intercept(feat, label) + self.nom_slope(feat, label) * pred)
+    def nom(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
+        """
+        Intermediate function to compute the numerator of the linear-fractional statistic.
+
+        Args:
+            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
+                classification or regression, it can be :math:`C = 1`.
+            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            stat_args: Any further arguments used to compute the statistic.
+            stat_kwargs: Any keyword arguments used to compute the statistic.
+
+        Returns:
+            torch.Tensor: Shape :math:`(S)`.
+        """
+        
+        nom = self.nom_intercept(*stat_args, **stat_kwargs) + self.nom_slope(*stat_args, **stat_kwargs) * pred
+        nom = sens * nom
         return nom.sum(dim=0)
 
-    def denom(self, pred, feat, sens, label):
-        denom = sens * (self.denom_intercept(feat, label) + self.denom_slope(feat, label) * pred)
+    def denom(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
+        """
+        Intermediate function to compute the denominator of the linear-fractional statistic.
+
+        Args:
+            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
+                classification or regression, it can be :math:`C = 1`.
+            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            stat_args: Any further arguments used to compute the statistic.
+            stat_kwargs: Any keyword arguments used to compute the statistic.
+
+        Returns:
+            torch.Tensor: Shape :math:`(S)`.
+        """
+
+        denom = self.denom_intercept(*stat_args, **stat_kwargs) + self.denom_slope(*stat_args, **stat_kwargs) * pred
+        denom = sens * denom
         return denom.sum(dim=0)
 
-    def forward(self, pred, feat, sens, label):
-        nom = self.nom(pred, feat, sens, label)
-        denom = self.denom(pred, feat, sens, label)
+    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
+        nom = self.nom(pred, sens, *stat_args, **stat_kwargs)
+        denom = self.denom(pred, sens, *stat_args, **stat_kwargs)
         return safe_div(nom, denom)
 
-    def overall_statistic(self, pred, feat, label):
-        return self.forward(pred, feat, 1., label)
+    def overall_statistic(self, pred: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> float:
+        """
+        Compute the overall statistic for the predictions. This is the value of the statistic when the sensitive feature
+        is ignored, i.e. set to 1. The predictions are typically considered fair (with respect to the statistic) if and
+        only if the statistic computed for every sensitive feature equals this value.
 
-    def linearize(self, feat, sens, label, c):
-        intercept = self.nom_intercept(feat, label) - self.denom_intercept(feat, label) * c
+        Args:
+            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
+                classification or regression, it can be :math:`C = 1`.
+            stat_args: Any further arguments used to compute the statistic.
+            stat_kwargs: Any keyword arguments used to compute the statistic.
+
+        Returns:
+            float: The overall statistic.
+        """
+        return self.forward(pred, 1., *stat_args, **stat_kwargs)
+
+    def fixed_constraint(self, fix_value: float, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) \
+            -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Reformulate the fairness definition for this LinearFractionalStatistic as a linear constraint.
+
+        This is done by fixing the intended values of the statistic for every sensitive feature to a given value
+        `fix_value`. The linear expressions that make up the nominator and denominator are then combined into a single
+        linear constraint.
+
+        Args:
+            fix_value (float): The intended value of the statistic for every sensitive feature. Typically, this is the
+            overall statistic.
+            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            *stat_args: Any further arguments used to compute the statistic.
+            **stat_kwargs: Any keyword arguments used to compute the statistic.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: The intercept and slope of the linear constraint defined as
+            :math:`\text{intercept} + \text{slope} \cdot \text{pred} = 0`.
+        """
+
+        intercept = self.nom_intercept(*stat_args, **stat_kwargs) - self.denom_intercept(*stat_args, **stat_kwargs) * fix_value
         intercept = sens * intercept
-        slope = self.nom_slope(feat, label) - self.denom_slope(feat, label) * c
+        slope = self.nom_slope(*stat_args, **stat_kwargs) - self.denom_slope(*stat_args, **stat_kwargs) * fix_value
         slope = sens * slope
         return intercept, slope
 
 
-# class StackLinearFractionalStatistic(LinearFractionalStatistic):
-#     def __init__(self, stats):
-#         super().__init__()
-#
-#         if not isinstance(stats, (list, tuple)) or len(stats) == 0 or \
-#                 not all(isinstance(stat, LinearFractionalStatistic) for stat in stats):
-#             raise ValueError(f"Expected a non-empty list of statistics, got {stats}.")
-#         self.stats = stats
-#
-#     def nom_intercept(self, feat, label):
-#         return torch.stack([stat.nom_intercept(feat, label) for stat in self.stats], dim=-1)
-#
-#     def nom_slope(self, feat, label):
-#         return torch.stack([stat.nom_slope(feat, label) for stat in self.stats], dim=-1)
-#
-#     def denom_intercept(self, feat, label):
-#         return torch.stack([stat.denom_intercept(feat, label) for stat in self.stats], dim=-1)
-#
-#     def denom_slope(self, feat, label):
-#         return torch.stack([stat.denom_slope(feat, label) for stat in self.stats], dim=-1)
-#
-#     def nom(self, pred, feat, sens, label):
-#         return super().nom(pred.unsqueeze(1), feat, sens.unsqueeze(1), label)
-#
-#     def denom(self, pred, feat, sens, label):
-#         return super().denom(pred.unsqueeze(1), feat, sens.unsqueeze(1), label)
-#
-#     def linearize(self, feat, sens, label, c):
-#         intercept, slope = super().linearize(feat, sens.unsqueeze(1), label, c.squeeze())
-#         return intercept.flatten(start_dim=1), slope.flatten(start_dim=1)
-
-
 class PositiveRate(LinearFractionalStatistic):
-    def nom_intercept(self, feat, label):
-        return torch.zeros(label.shape)
+    """
+    PositiveRate is a LinearFractionalStatistic that computes the average rate at which positive predictions are made in
+    binary classification.
 
-    def nom_slope(self, feat, label):
-        return torch.ones(label.shape)
+    Formulated as a probability, it computes :math:`P(\hat{Y} = 1 | S)` for categorical sensitive features :math:`S`,
+    with the predicted label :math:`\hat{Y}` sampled according to the model's (probabilistic) prediction.
 
-    def denom_intercept(self, feat, label):
-        return torch.ones(label.shape)
+    The functions of its canonical form take no arguments.
+    """
 
-    def denom_slope(self, feat, label):
-        return torch.zeros(label.shape)
+    def nom_intercept(self) -> torch.Tensor:
+        return 0.
+
+    def nom_slope(self) -> torch.Tensor:
+        return 1.
+
+    def denom_intercept(self) -> torch.Tensor:
+        return 1.
+
+    def denom_slope(self) -> torch.Tensor:
+        return 0.
 
 
 class TruePositiveRate(LinearFractionalStatistic):
-    def nom_intercept(self, feat, label):
-        return torch.zeros(label.shape)
+    """
+    TruePositiveRate is a LinearFractionalStatistic that computes the average rate at which positives are actually
+    predicted as positives, also known as the recall.
 
-    def nom_slope(self, feat, label):
+    Formulated as a probability, it computes :math:`P(\hat{Y} = 1 | Y = 1, S)` for categorical sensitive features
+    :math:`S` and only for samples where the target label :math:`Y` is positive, with the predicted label
+    :math:`\hat{Y}` sampled according to the model's (probabilistic) prediction.
+
+    The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
+    predictions.
+    """
+
+    def nom_intercept(self, label: torch.Tensor) -> torch.Tensor:
+        return 0.
+
+    def nom_slope(self, label: torch.Tensor) -> torch.Tensor:
         return label
 
-    def denom_intercept(self, feat, label):
+    def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         return label
 
-    def denom_slope(self, feat, label):
-        return torch.zeros(label.shape)
+    def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
+        return 0.
 
 
 class FalsePositiveRate(LinearFractionalStatistic):
-    def nom_intercept(self, feat, label):
-        return torch.zeros(label.shape)
+    """
+    FalsePositiveRate is a LinearFractionalStatistic that computes the average rate at which negatives are actually
+    predicted as positives.
 
-    def nom_slope(self, feat, label):
+    Formulated as a probability, it computes :math:`P(\hat{Y} = 1 | Y = 0, S)` for categorical sensitive features
+    :math:`S` and only for samples where the target label :math:`Y` is negative, with the predicted label
+    :math:`\hat{Y}` sampled according to the model's (probabilistic) prediction.
+
+    The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
+    predictions.
+    """
+
+    def nom_intercept(self, label: torch.Tensor) -> torch.Tensor:
+        return 0.
+
+    def nom_slope(self, label: torch.Tensor) -> torch.Tensor:
         return 1 - label
 
-    def denom_intercept(self, feat, label):
+    def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         return 1 - label
 
-    def denom_slope(self, feat, label):
-        return torch.zeros(label.shape)
+    def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
+        return 0.
 
 
 class PositivePredictiveValue(LinearFractionalStatistic):
-    def nom_intercept(self, feat, label):
-        return torch.zeros(label.shape)
+    """
+    PositivePredictiveValue is a LinearFractionalStatistic that computes the average rate at which the predicted
+    positives were actually labeled positive, also known as the precision.
 
-    def nom_slope(self, feat, label):
+    Formulated as a probability, it computes :math:`P(Y = 1 | \hat{Y} = 1, S)` for categorical sensitive features
+    :math:`S` and only for samples where the predicted label (sampled according to the model's (probabilistic)
+    prediction) is positive, with :math:`Y` the target label.
+
+    The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
+    predictions.
+    """
+
+    def nom_intercept(self, label: torch.Tensor) -> torch.Tensor:
+        return 0.
+
+    def nom_slope(self, label: torch.Tensor) -> torch.Tensor:
         return label
 
-    def denom_intercept(self, feat, label):
-        return torch.zeros(label.shape)
+    def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
+        return 0.
 
-    def denom_slope(self, feat, label):
-        return torch.ones(label.shape)
+    def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
+        return 1.
 
 
 class FalseOmissionRate(LinearFractionalStatistic):
-    def nom_intercept(self, feat, label):
+    """
+    FalseOmissionRate is a LinearFractionalStatistic that computes the average rate at which the predicted
+    negatives were actually labeled positive, also known as the precision.
+
+    Formulated as a probability, it computes :math:`P(Y = 1 | \hat{Y} = 0, S)` for categorical sensitive features
+    :math:`S` and only for samples where the predicted label (sampled according to the model's (probabilistic)
+    prediction) is negative, with :math:`Y` the target label.
+
+    The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
+    predictions.
+    """
+
+    def nom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         return label
 
-    def nom_slope(self, feat, label):
+    def nom_slope(self, label: torch.Tensor) -> torch.Tensor:
         return -label
 
-    def denom_intercept(self, feat, label):
-        return torch.ones(label.shape)
+    def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
+        return 1.
 
-    def denom_slope(self, feat, label):
-        return -torch.ones(label.shape)
+    def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
+        return -1.
 
 
 class Accuracy(LinearFractionalStatistic):
-    def nom_intercept(self, feat, label):
+    """
+    Accuracy is a LinearFractionalStatistic that computes the average rate at which predictions match the actual target
+    labels.
+
+    Formulated as a probability, it computes :math:`P(\hat{Y} = Y | S)` for categorical sensitive features :math:`S`,
+    with the predicted label :math:`\hat{Y}` sampled according to the model's (probabilistic) prediction and with
+    :math:`Y` the target label.
+
+    The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
+    predictions.
+    """
+
+    def nom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         return 1 - label
 
-    def nom_slope(self, feat, label):
+    def nom_slope(self, label: torch.Tensor) -> torch.Tensor:
         return 2 * label - 1
 
-    def denom_intercept(self, feat, label):
-        return torch.ones(label.shape)
+    def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
+        return 1.
 
-    def denom_slope(self, feat, label):
-        return torch.zeros(label.shape)
+    def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
+        return 0.
 
 
 class FalseNegativeFalsePositiveFraction(LinearFractionalStatistic):
-    def nom_intercept(self, feat, label):
+    """
+    FalseNegativeFalsePositiveFraction is a LinearFractionalStatistic that computes the ratio between false negatives
+    and false positives.
+
+    The statistic cannot be formulated as a single probability.
+
+    The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
+    predictions.
+    """
+
+    def nom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         return label
 
-    def nom_slope(self, feat, label):
+    def nom_slope(self, label: torch.Tensor) -> torch.Tensor:
         return -label
 
-    def denom_intercept(self, feat, label):
+    def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         # Small value to avoid numerical issues in initial experiments. Now handled more gracefully.
-        # return torch.ones(feat.shape[0]) / feat.shape[0]
-        return torch.zeros(label.shape)
+        # return 1. / label.shape[0]
+        return 0.
 
-    def denom_slope(self, feat, label):
+    def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
         return 1 - label
