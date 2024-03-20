@@ -1,3 +1,4 @@
+from typing import Any
 import torch
 import cvxpy as cp
 
@@ -33,7 +34,8 @@ class ProjectionLoss(FairnessLoss):
     def cvxpy_objective(f, h):
         raise NotImplementedError
 
-    def forward(self, pred, sens, *stat_args, **kwargs):
+    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=False,
+                **stat_kwargs: Any) -> torch.Tensor:
         raise NotImplementedError
 
     def _init_cvxpy(self, batch_size, constraint_dim):

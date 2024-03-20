@@ -22,8 +22,8 @@ class Statistic(abc.ABC, torch.nn.Module):
             pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
                 classification or regression, it can be :math:`C = 1`.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
-            stat_args: Any further arguments used to compute the statistic.
-            stat_kwargs: Any keyword arguments used to compute the statistic.
+            *stat_args: Any further arguments used to compute the statistic.
+            **stat_kwargs: Any keyword arguments used to compute the statistic.
 
         Returns:
             torch.Tensor: Shape :math:`(S)`.
@@ -43,6 +43,10 @@ class LinearFractionalStatistic(Statistic):
     The statistic is then computed as :math:`\\frac{nom\_intercept + nom\_slope * pred}{denom\_intercept + denom\_slope
     * pred}`.
     """
+
+    # The following methods violate the Liskov Substitution Principle (LSP) because they are implemented more generally
+    # in this base class than is expected in the subclasses. However, it is kept for practical reasons. See 
+    # https://github.com/python/mypy/issues/5876
 
     @abc.abstractmethod
     def nom_intercept(self, *args: Any, **kwargs: Any) -> torch.Tensor:
@@ -114,8 +118,8 @@ class LinearFractionalStatistic(Statistic):
             pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
                 classification or regression, it can be :math:`C = 1`.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
-            stat_args: Any further arguments used to compute the statistic.
-            stat_kwargs: Any keyword arguments used to compute the statistic.
+            *stat_args: Any further arguments used to compute the statistic.
+            **stat_kwargs: Any keyword arguments used to compute the statistic.
 
         Returns:
             torch.Tensor: Shape :math:`(S)`.
@@ -133,8 +137,8 @@ class LinearFractionalStatistic(Statistic):
             pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
                 classification or regression, it can be :math:`C = 1`.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
-            stat_args: Any further arguments used to compute the statistic.
-            stat_kwargs: Any keyword arguments used to compute the statistic.
+            *stat_args: Any further arguments used to compute the statistic.
+            **stat_kwargs: Any keyword arguments used to compute the statistic.
 
         Returns:
             torch.Tensor: Shape :math:`(S)`.
@@ -149,7 +153,7 @@ class LinearFractionalStatistic(Statistic):
         denom = self.denom(pred, sens, *stat_args, **stat_kwargs)
         return safe_div(nom, denom)
 
-    def overall_statistic(self, pred: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> float:
+    def overall_statistic(self, pred: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
         """
         Compute the overall statistic for the predictions. This is the value of the statistic when the sensitive feature
         is ignored, i.e. set to 1. The predictions are typically considered fair (with respect to the statistic) if and
@@ -158,11 +162,11 @@ class LinearFractionalStatistic(Statistic):
         Args:
             pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
                 classification or regression, it can be :math:`C = 1`.
-            stat_args: Any further arguments used to compute the statistic.
-            stat_kwargs: Any keyword arguments used to compute the statistic.
+            *stat_args: Any further arguments used to compute the statistic.
+            **stat_kwargs: Any keyword arguments used to compute the statistic.
 
         Returns:
-            float: The overall statistic.
+            torch.Tensor: The overall statistic as a scalar tensor.
         """
         return self.forward(pred, 1., *stat_args, **stat_kwargs)
 
@@ -177,7 +181,7 @@ class LinearFractionalStatistic(Statistic):
 
         Args:
             fix_value (float): The intended value of the statistic for every sensitive feature. Typically, this is the
-            overall statistic.
+                overall statistic.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: Any further arguments used to compute the statistic.
             **stat_kwargs: Any keyword arguments used to compute the statistic.
