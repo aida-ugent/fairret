@@ -40,8 +40,8 @@ class LinearFractionalStatistic(Statistic):
     and denominator linear functions, i.e. the functions nom_intercept, nom_slope, denom_intercept, and denom_slope.
     Each subclass must implement these functions (using any signature).
 
-    The statistic is then computed as :math:`\frac{\text{nom_intercept} + \text{nom_slope} \cdot
-    \text{pred}}{\text{denom_intercept} + \text{denom_slope} \cdot \text{pred}}`.
+    The statistic is then computed as :math:`\\frac{nom\_intercept + nom\_slope * pred}{denom\_intercept + denom\_slope
+    * pred}`.
     """
 
     @abc.abstractmethod
@@ -184,7 +184,7 @@ class LinearFractionalStatistic(Statistic):
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: The intercept and slope of the linear constraint defined as
-            :math:`\text{intercept} + \text{slope} \cdot \text{pred} = 0`.
+            :math:`intercept + slope * pred = 0`.
         """
 
         intercept = self.nom_intercept(*stat_args, **stat_kwargs) - self.denom_intercept(*stat_args, **stat_kwargs) * fix_value
