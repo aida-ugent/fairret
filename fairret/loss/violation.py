@@ -8,7 +8,7 @@ from ..statistic import Statistic, LinearFractionalStatistic
 
 class ViolationLoss(FairnessLoss):
     """
-    Abstract base class for fairness losses that quantify the violation vector of a fairness constraint. The violation
+    Abstract base class for fairness losses that penalize the violation vector of a fairness constraint. The violation
     vector is computed as the gap between the statistics per sensitive feature and a target statistic.
 
     Each subclass must implement the `penalize_violation` method.
@@ -39,7 +39,7 @@ class ViolationLoss(FairnessLoss):
         """
         raise NotImplementedError
 
-    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=False,
+    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=True,
                 target_statistic=Optional[torch.Tensor], **stat_kwargs: Any) -> torch.Tensor:
         """
         Abstract method that should be implemented by subclasses to calculate the loss.
@@ -50,8 +50,8 @@ class ViolationLoss(FairnessLoss):
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: Any further arguments used to compute the statistic.
             pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are
-                expected to simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses may benefit
-                from improved numerical stability if they handle the conversion themselves.
+                will simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses benefit from improved
+                numerical stability if they handle the conversion themselves.
             target_statistic (Optional[torch.Tensor]): The target statistic as a scalar tensor. If not provided for a
                 LinearFractionalStatistic, the overall statistic will be used by default.
             **stat_kwargs: Any keyword arguments used to compute the statistic.
@@ -66,6 +66,7 @@ class ViolationLoss(FairnessLoss):
         if target_statistic is None:
             if isinstance(self.statistic, LinearFractionalStatistic):
                 if target_statistic is None:
+                    # TODO check if we should detach.
                     target_statistic = self.statistic.overall_statistic(pred, *stat_args, **stat_kwargs)
             else:
                 raise ValueError(f"Was initialized with a statistic of type {self.statistic.__class__}, but no 'c' was "
@@ -73,7 +74,7 @@ class ViolationLoss(FairnessLoss):
                                  f"provide a value for 'c'.")
 
         stats = self.statistic(pred, sens, *stat_args, **stat_kwargs)
-        if target_statistic.item() == 0.:
+        if target_statistic == 0.:
             loss = stats.sum()
             return loss
         violation = torch.abs(stats / target_statistic - 1)

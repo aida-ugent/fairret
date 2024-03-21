@@ -1,4 +1,5 @@
-from typing import Any
+import abc
+from typing import Any, Tuple
 import torch
 import cvxpy as cp
 
@@ -7,73 +8,227 @@ from ..statistic import LinearFractionalStatistic
 
 
 class ProjectionLoss(FairnessLoss):
-    def __init__(self, stat: LinearFractionalStatistic,
-                 solver_cfg=None,
-                 ensure_nonneg=True):
+    """
+    Abstract base class for fairness losses that penalize the statistical distance between a set of predictions and
+    the fair projection of those predictions. The fair projection satisfies the linear fairness constraint
+    corresponding to a LinearFractionalStatistic that is fixed to a target value (such as the overall statistic).
+
+    The projections are computed using cvxpy. Hence, any subclass is expected to implement the statistical distance
+    between distributions in both cvxpy and PyTorch by implementing the `cvxpy_distance` method and the `torch_distance`
+    method respectively.
+
+    Optionally, the `torch_distance_with_logits` method can be implemented to handle the case where the predictions are
+    provided as logits. By default, this method simply calls `torch_distance` after applying the sigmoid function to the
+    predictions.
+
+    Note:
+        We use 'statistical distance' in a broad sense here, and do not require that the distance is a metric. See
+        https://en.wikipedia.org/wiki/Statistical_distance for more information.
+    """
+
+    def __init__(self, stat: LinearFractionalStatistic, proj_eps=1e-8, **solver_kwargs: Any):
+        """
+        Args:
+            stat (LinearFractionalStatistic): The LinearFractionalStatistic that defines the fairness constraint. The
+                projection is computed through convex optimization, so the constraint should be linear. This is achieved
+                by fixing equality in the LinearFractionalStatistic values to the overall statistic.
+            proj_eps (float): The minimum value of every probability value in the projected distribution. Due to
+                normalization, the maximum value in binary classification is then also 1 - proj_eps. Setting this to
+                a small, non-negative value helps prevent numerical instability if the optimization is not done to
+                convergence.
+            solver_kwargs: Any keyword arguments to be passed to the cvxpy solver. The default configuration is:
+                {
+                    'solver': 'SCS',
+                    'warm_start': True,
+                    'max_iters': 10,
+                    'ignore_dpp': True
+                }
+        """
+
         super().__init__()
         self.stat = stat
-        self.solver_cfg = {
+        self.proj_eps = proj_eps
+        self.solver_kwargs = {
             'solver': 'SCS',
             'warm_start': True,
             'max_iters': 10,
             'ignore_dpp': True
         }
-        if solver_cfg is not None:
-            if not isinstance(solver_cfg, dict):
+        if solver_kwargs is not None:
+            if not isinstance(solver_kwargs, dict):
                 raise ValueError("solver_cfg must be a dict.")
-            self.solver_cfg |= solver_cfg
-        self.ensure_nonneg = ensure_nonneg
+            self.solver_kwargs |= solver_kwargs
 
-        self._f = None
-        self._h = None
+        self._proj_cvxpy = None
+        self._pred_cvxpy = None
         self._intercept = None
         self._slope = None
         self._problem = None
 
-    @staticmethod
-    def cvxpy_objective(f, h):
+    @abc.abstractmethod
+    def cvxpy_distance(self, pred: cp.Parameter, proj: cp.Variable) -> cp.Expression:
+        """
+        Compute the statistical distance between two distributions in cvxpy. Used for the convex optimization problem.
+
+        This method should be implemented by all subclasses.
+
+        Args:
+            pred (cp.Parameter): The predicted distribution in shape (N,2). As we assume binary classification, the
+                first column is the probability of the negative class and the second column is the probability of the
+                positive class.
+            proj (cp.Variable): The projected distribution in shape (N,2). As we assume binary classification, the
+                first column is the probability of the negative class and the second column is the probability of the
+                positive class.
+
+        Returns:
+            cp.Expression: The statistical distance in shape (1,).
+        """
+
         raise NotImplementedError
 
-    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=False,
-                **stat_kwargs: Any) -> torch.Tensor:
+    @abc.abstractmethod
+    def torch_distance(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the statistical distance between two distributions in PyTorch. Used for computing the gradient of the
+        distance between the predictions and the projection (with respect to the predictions).
+
+        This method should be implemented by all subclasses.
+
+        Args:
+            pred (torch.Tensor): The predicted distribution in shape (N,1). As we assume binary classification, this is
+                the probability of the positive class.
+            proj (torch.Tensor): The projected distribution in shape (N,1). As we assume binary classification, this is
+                the probability of the positive class.
+
+        Returns:
+            torch.Tensor: The statistical distance as a scalar tensor.
+        """
+
         raise NotImplementedError
 
-    def _init_cvxpy(self, batch_size, constraint_dim):
-        f = cp.Variable((batch_size, 2), nonneg=True)
-        h = cp.Parameter((batch_size, 2), nonneg=True)
+    def torch_distance_with_logits(self, pred, proj):
+        """
+        Alternative method to torch_distance, where `pred` is assumed to be logits. By default, this method simply calls
+        `torch_distance` after applying the sigmoid function to the predictions. However, it can be overwritten by
+        subclasses to provide a more numerically stable implementation.
+
+        Args:
+            pred (torch.Tensor): The predicted distribution as logits, in shape (N,1). As we assume binary
+                classification, this is the logit of the probability of the positive class.
+            proj (torch.Tensor): The projected distribution in shape (N,1). As we assume binary classification, this is
+                the probability of the positive class.
+
+        Returns:
+            torch.Tensor: The statistical distance as a scalar tensor.
+        """
+
+        return self.torch_distance(torch.sigmoid(pred), proj)
+
+    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=True, **stat_kwargs: Any
+                ) -> torch.Tensor:
+        """
+        Calculate the fairness loss by projecting the predictions onto the fair set and computing the statistical
+        distance between the predictions and the projection.
+
+        Args:
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)` for the task of binary classification.
+            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            *stat_args: Any further arguments used to compute the statistic.
+            pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are
+                will simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses benefit from improved
+                numerical stability if they handle the conversion themselves.
+            **stat_kwargs: Any keyword arguments used to compute the statistic.
+
+        Returns:
+            torch.Tensor: The calculated loss as a scalar tensor.
+        """
+
+        if pred_as_logit:
+            prob_pred = torch.sigmoid(pred)
+        else:
+            prob_pred = pred
+
+        proj = self._fit_cvxpy(prob_pred, sens, *stat_args, **stat_kwargs)
+        proj = proj.clamp(min=self.proj_eps, max=1 - self.proj_eps)
+
+        if pred_as_logit:
+            dist = self.torch_distance_with_logits(pred, proj)
+        else:
+            dist = self.torch_distance(pred, proj)
+        return dist
+
+    def _init_cvxpy(self, batch_size: int, constraint_dim: int
+                    ) -> Tuple[Tuple[cp.Parameter, cp.Variable, cp.Parameter, cp.Parameter], cp.Problem]:
+        """
+        Initialize the cvxpy problem for the convex optimization.
+
+        Args:
+            batch_size (int): The batch size of the predictions.
+            constraint_dim (int): The dimension of the linear fairness constraint, typically the number of sensitive
+                features.
+
+        Returns:
+            Tuple[cp.Parameter, cp.Variable, cp.Parameter, cp.Parameter]: A tuple of the parameters and variables for
+                the cvxpy problem, in the order (pred, proj, intercept, slope).
+            cp.Problem: The cvxpy problem to be solved.
+        """
+
+        pred = cp.Parameter((batch_size, 2), nonneg=True)
+        proj = cp.Variable((batch_size, 2), nonneg=True)
         intercept = cp.Parameter(constraint_dim)
         slope = cp.Parameter((batch_size, constraint_dim))
 
-        objective = cp.Minimize(self.cvxpy_objective(f, h))
+        objective = cp.Minimize(self.cvxpy_distance(pred, proj))
         constraints = [
-            intercept + f[:, 1] @ slope == 0.,
-            cp.sum(f, axis=1) == 1.
+            intercept + proj[:, 1] @ slope == 0.,
+            cp.sum(proj, axis=1) == 1.
         ]
         problem = cp.Problem(objective, constraints)
 
         # if not problem.is_dcp(dpp=True):
         #     raise ValueError("The problem is not DPP.")
-        return (f, h, intercept, slope), problem
+        return (pred, proj, intercept, slope), problem
 
     @property
-    def _batch_size(self):
-        return self._h.shape[0]  # h parameter in cvxpy Problem definition
+    def _batch_size(self) -> int:
+        """
+        Returns:
+            int: The batch size of the first batch that was used to initialize the cvxpy problem.
+        """
 
-    def _fit_cvxpy(self, pred, sens, *stat_args, **stat_kwargs):
+        return self._pred_cvxpy.shape[0]
+
+    def _fit_cvxpy(self, pred, sens, *stat_args, **stat_kwargs) -> torch.Tensor:
+        """
+        Iterate over the cvxpy problem to find the projection of the predictions onto the fair set.
+
+        Args:
+            pred (torch.Tensor): Predictions of shape :math:`(N, 2)`. The predicted distribution in shape (N,2). As we
+                assume binary classification, the first column is the probability of the negative class and the second
+                column is the probability of the positive class.
+            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            *stat_args: Any further arguments used to compute the statistic.
+            **stat_kwargs: Any keyword arguments used to compute the statistic.
+
+        Returns:
+            torch.Tensor: The projection of the predictions onto the fair set in the shape (N, 2).
+        """
+
         pred = pred.detach()
 
-        # Constrain the fair set to those where the statistics match c.
-        # Here, we choose c as the overall statistic of the predictions.
-        c = self.stat.overall_statistic(pred, *stat_args, **stat_kwargs)
+        # Constrain the fair set to those where the statistics match the target_statistic.
+        # Here, we choose target_statistic as the overall statistic of the predictions.
+        target_statistic = self.stat.overall_statistic(pred, *stat_args, **stat_kwargs)
 
-        # Based on c and the specific statistic, we precompute the intercept and slope of the linear fairness constraint
-        intercept, slope = self.stat.fixed_constraint(c, sens, *stat_args, **stat_kwargs)
+        # Based on the target_statistic and the feature-specific statistic, we precompute the intercept and slope of the
+        # linear fairness constraint.
+        intercept, slope = self.stat.fixed_constraint(target_statistic, sens, *stat_args, **stat_kwargs)
         intercept = intercept.sum(dim=0)
 
-        # If this is the first time the loss is called, initialize the convex optimization problem
+        # If this is the first time the loss is called, initialize the convex optimization problem.
         if self._problem is None:
             params, problem = self._init_cvxpy(*slope.shape)
-            self._f, self._h, self._intercept, self._slope = params
+            self._pred_cvxpy, self._proj_cvxpy, self._intercept, self._slope = params
             self._problem = problem
 
         # If the received batch is smaller than we expected (e.g. because it is the last batch in an epoch), then pad
@@ -88,17 +243,18 @@ class ProjectionLoss(FairnessLoss):
                              f"exceed the batch size of the first batch. Got {batch_size}, yet we initialized with "
                              f"{self._batch_size}!")
 
-        # Expand the prediction to its Bernoulli distribution and solve the convex optimization problem
+        # Expand the prediction to its Bernoulli distribution and fill in the parameters of the cvxpy problem.
         pred = torch.cat([1 - pred, pred], dim=-1)
+        self._pred_cvxpy.value = pred.numpy()
+        self._intercept.value = intercept.numpy()
+        self._slope.value = slope.numpy()
 
-        self._h.value = pred.detach().numpy()
-        self._intercept.value = intercept.detach().numpy()
-        self._slope.value = slope.detach().numpy()
+        # Solve the convex optimization problem.
+        self._problem.solve(**self.solver_kwargs)
 
-        self._problem.solve(**self.solver_cfg)
-
-        projection = self._f.value
-        if projection is None:
+        # Extract the solution from the cvxpy problem and do some checks.
+        proj = self._proj_cvxpy.value
+        if proj is None:
             neg_intercepts = intercept < 0
             if neg_intercepts.any() and (slope[:, neg_intercepts] <= 0).all():
                 raise RuntimeError("The slope and intercept of a linear constraint are both negative. This means a "
@@ -106,137 +262,102 @@ class ProjectionLoss(FairnessLoss):
             # intercept, slope = self.stat.linearize(feat, sens, label, c)
             # raise RuntimeError(f"The convex optimization problem did not converge. "
             #                    f"It has status {self._problem.solution.status}")
-            projection = pred.detach().numpy()
+            proj = pred.detach().numpy()
             print("The convex optimization problem did not converge! Continuing...")
 
-        projection = torch.from_numpy(projection)
+        proj = torch.from_numpy(proj)
         if batch_size < self._batch_size:
-            projection = projection[:batch_size]
-
-        if self.ensure_nonneg:
-            # The solution should be a Bernoulli distribution, but the convex optimization might not yield one due to
-            # numerical issues. We thus ensure that the solution sums to one (at the cost of accuracy).
-            projection[:, 0] = 1 - projection[:, 1]
-        return projection
+            proj = proj[:batch_size]
+        return proj
 
 
 class KLProjectionLoss(ProjectionLoss):
-    def __init__(self,
-                 stat,
-                 # The KLD is not defined for distributions with probability exactly 0 or 1.
-                 # We thus clamp the solution to be in [eps, 1 - eps].
-                 eps=1e-8,
-                 **kwargs):
-        super().__init__(stat, **kwargs)
-        self.eps = eps
+    """
+    Fairness loss that penalizes the Kullback-Leibler divergence between the predicted distribution and the fair
+    projection of the predictions.
+    """
 
-    @staticmethod
-    def cvxpy_objective(f, h):
-        return cp.sum(cp.kl_div(f, h)) / f.shape[0]
+    def cvxpy_distance(self, pred, proj):
+        return cp.sum(cp.kl_div(proj, pred)) / proj.shape[0]
 
-    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
-        if as_logit:
-            pred = torch.sigmoid(logit)
-        else:
-            pred = logit
-            logit = torch.logit(pred)
+    def torch_distance(self, pred, proj):
+        pred = torch.cat([1 - pred, pred], dim=-1)
+        log_pred = torch.log(pred)
+        dist = torch.nn.functional.kl_div(log_pred, proj, reduction='batchmean')
+        return dist
 
-        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
-        solution = solution.clamp(min=self.eps, max=1-self.eps)
-
+    def torch_distance_with_logits(self, pred, proj):
         # Use log-sigmoid operation for numerical stability
         log_sigmoid_fn = torch.nn.LogSigmoid()
         # Log-probabilities of the Bernoulli distribution. We use that 1 - sigmoid(x) = sigmoid(-x)
-        log_pred = torch.cat([log_sigmoid_fn(-logit), log_sigmoid_fn(logit)], dim=-1)
+        log_pred = torch.cat([log_sigmoid_fn(-pred), log_sigmoid_fn(pred)], dim=-1)
 
         # Compute the KL divergence between the prediction distribution and the closest fair distribution
         # Note that PyTorch reverses the typical KL divergence ordering!
-        dist = torch.nn.functional.kl_div(log_pred, solution, reduction='batchmean')
+        dist = torch.nn.functional.kl_div(log_pred, proj, reduction='batchmean')
         return dist
 
 
 class JensenShannonProjectionLoss(ProjectionLoss):
-    def __init__(self,
-                 stat,
-                 # The KLD is not defined for distributions with probability exactly 0 or 1.
-                 # We thus clamp the solution to be in [eps, 1 - eps].
-                 eps=1e-8,
-                 **kwargs):
-        super().__init__(stat, **kwargs)
-        self.eps = eps
+    """
+    Fairness loss that penalizes the Jensen-Shannon divergence between the predicted distribution and the fair
+    projection of the predictions.
+    """
 
-    @staticmethod
-    def cvxpy_objective(f, h):
-        avg = (f + h) / 2
-        return cp.sum(cp.kl_div(f, avg)) + cp.sum(cp.kl_div(h, avg)) / (2 * f.shape[0])
+    def cvxpy_distance(self, pred, proj):
+        avg = (proj + pred) / 2
+        return cp.sum(cp.kl_div(proj, avg)) + cp.sum(cp.kl_div(pred, avg)) / (2 * proj.shape[0])
 
-    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
-        if as_logit:
-            pred = torch.sigmoid(logit)
-        else:
-            pred = logit
-
-        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
-        solution = solution.clamp(min=self.eps, max=1-self.eps)
-
+    def torch_distance(self, pred, proj):
         pred = torch.cat([1 - pred, pred], dim=-1)
-        avg = (pred + solution) / 2
+        avg = (pred + proj) / 2
         log_avg = torch.log(avg)
 
         dist = (torch.nn.functional.kl_div(log_avg, pred, reduction='batchmean') +
-                torch.nn.functional.kl_div(log_avg, solution, reduction='batchmean')) / 2
+                torch.nn.functional.kl_div(log_avg, proj, reduction='batchmean')) / 2
         return dist
 
 
 class TotalVariationProjectionLoss(ProjectionLoss):
-    @staticmethod
-    def cvxpy_objective(f, h):
-        return 1 / 2 * cp.sum(cp.abs(f - h)) / f.shape[0]
+    """
+    Fairness loss that penalizes the Total Variation Distance between the predicted distribution and the fair
+    projection of the predictions.
+    """
 
-    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
-        if as_logit:
-            pred = torch.sigmoid(logit)
-        else:
-            pred = logit
+    def cvxpy_distance(self, pred, proj):
+        return 1 / 2 * cp.sum(cp.abs(proj - pred)) / proj.shape[0]
 
-        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
+    def torch_distance(self, pred, proj):
         pred = torch.cat([1 - pred, pred], dim=-1)
-
-        dist = torch.sum(torch.abs(pred - solution), dim=-1).mean()
+        dist = torch.sum(torch.abs(pred - proj), dim=-1).mean()
         return dist
 
 
 class ChiSquaredProjectionLoss(ProjectionLoss):
-    @staticmethod
-    def cvxpy_objective(f, h):
-        return cp.sum(cp.power(f, 2) / h - 1) / f.shape[0]
+    """
+    Fairness loss that penalizes the Chi-Squared Distance between the predicted distribution and the fair projection of
+    the predictions.
+    """
 
-    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
-        if as_logit:
-            pred = torch.sigmoid(logit)
-        else:
-            pred = logit
+    def cvxpy_distance(self, pred, proj):
+        return cp.sum(cp.power(proj, 2) / pred - 1) / proj.shape[0]
 
-        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
+    def torch_distance(self, pred, proj):
         pred = torch.cat([1 - pred, pred], dim=-1)
-
-        dist = torch.sum(solution ** 2 / pred, dim=-1).mean()
+        dist = torch.sum(proj ** 2 / pred, dim=-1).mean()
         return dist
 
 
 class SquaredEuclideanProjectionLoss(ProjectionLoss):
-    @staticmethod
-    def cvxpy_objective(f, h):
-        return cp.sum((f - h) ** 2) / f.shape[0]
+    """
+    Fairness loss that penalizes the Squared Euclidean Distance between the predicted distribution and the fair
+    projection of the predictions.
+    """
 
-    def forward(self, logit, sens, *stat_args, as_logit=True, **stat_kwargs):
-        if as_logit:
-            pred = torch.sigmoid(logit)
-        else:
-            pred = logit
+    def cvxpy_distance(self, pred, proj):
+        return cp.sum((proj - pred) ** 2) / proj.shape[0]
 
-        solution = self._fit_cvxpy(pred, sens, *stat_args, **stat_kwargs)
-        solution = solution[:, 1]
-
-        dist = ((pred - solution) ** 2).mean()
+    def torch_distance(self, pred, proj):
+        proj = proj[:, 1]
+        dist = ((pred - proj) ** 2).mean()
         return dist

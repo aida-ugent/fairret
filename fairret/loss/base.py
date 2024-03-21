@@ -9,8 +9,8 @@ class FairnessLoss(abc.ABC, torch.nn.Module):
     """
 
     @abc.abstractmethod
-    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, pred_as_logit=False, 
-                **stat_kwargs: Any) -> torch.Tensor:
+    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, pred_as_logit=True, **stat_kwargs: Any
+                ) -> torch.Tensor:
         """
         Abstract method that should be implemented by subclasses to calculate the loss.
         
@@ -20,8 +20,8 @@ class FairnessLoss(abc.ABC, torch.nn.Module):
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: Any further arguments used to compute the statistic.
             pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are
-                expected to simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses may benefit
-                from improved numerical stability if they handle the conversion themselves.
+                will simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses benefit from improved
+                numerical stability if they handle the conversion themselves.
             **stat_kwargs: Any keyword arguments used to compute the statistic.
 
         Returns:
