@@ -26,13 +26,18 @@ class ProjectionLoss(FairnessLoss):
         https://en.wikipedia.org/wiki/Statistical_distance for more information.
     """
 
-    def __init__(self, stat: LinearFractionalStatistic, proj_eps=1e-8, **solver_kwargs: Any):
+    def __init__(self, stat: LinearFractionalStatistic, force_proj_normalized=True, proj_eps=0., **solver_kwargs: Any):
         """
         Args:
             stat (LinearFractionalStatistic): The LinearFractionalStatistic that defines the fairness constraint. The
                 projection is computed through convex optimization, so the constraint should be linear. This is achieved
                 by fixing equality in the LinearFractionalStatistic values to the overall statistic.
-            proj_eps (float): The minimum value of every probability value in the projected distribution. Due to
+            force_proj_normalized (bool): Whether to force the projected distribution to be normalized. This might not
+                be the case if the optimization does not converge to a solution that satisfies the normalization
+                constraint. Hence, setting this to True will renormalize the projected distribution to sum to 1.
+            proj_eps (float): Every probability value in the projected distribution is clamped to the interval
+                [proj_eps, 1 - proj_eps]. Default is 0.
+            The minimum value of every probability value in the projected distribution. Due to
                 normalization, the maximum value in binary classification is then also 1 - proj_eps. Setting this to
                 a small, non-negative value helps prevent numerical instability if the optimization is not done to
                 convergence.
@@ -47,6 +52,7 @@ class ProjectionLoss(FairnessLoss):
 
         super().__init__()
         self.stat = stat
+        self.force_proj_normalized = force_proj_normalized
         self.proj_eps = proj_eps
         self.solver_kwargs = {
             'solver': 'SCS',
@@ -149,6 +155,8 @@ class ProjectionLoss(FairnessLoss):
             prob_pred = pred
 
         proj = self._fit_cvxpy(prob_pred, sens, *stat_args, **stat_kwargs)
+        if self.force_proj_normalized:
+            proj /= proj.mean(dim=-1, keepdim=True)
         proj = proj.clamp(min=self.proj_eps, max=1 - self.proj_eps)
 
         if pred_as_logit:

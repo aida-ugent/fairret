@@ -40,7 +40,7 @@ class ViolationLoss(FairnessLoss):
         raise NotImplementedError
 
     def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=True,
-                target_statistic=Optional[torch.Tensor], **stat_kwargs: Any) -> torch.Tensor:
+                target_statistic: Optional[torch.Tensor] = None, **stat_kwargs: Any) -> torch.Tensor:
         """
         Abstract method that should be implemented by subclasses to calculate the loss.
 

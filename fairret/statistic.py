@@ -170,8 +170,8 @@ class LinearFractionalStatistic(Statistic):
         """
         return self.forward(pred, 1., *stat_args, **stat_kwargs)
 
-    def fixed_constraint(self, fix_value: float, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) \
-            -> Tuple[torch.Tensor, torch.Tensor]:
+    def fixed_constraint(self, fix_value: float, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any
+                         ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Reformulate the fairness definition for this LinearFractionalStatistic as a linear constraint.
 
