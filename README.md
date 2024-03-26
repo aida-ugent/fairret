@@ -26,7 +26,7 @@ def train(model, optimizer, train_loader):
             
             logit = model(feat)
             bce_loss = F.binary_cross_entropy_with_logits(logit, target)
-            fairret_loss = norm_fairret(logit, feat, sens, target)
+            fairret_loss = norm_fairret(logit, sens)
             loss = bce_loss + fairret_loss
             loss.backward()
             
