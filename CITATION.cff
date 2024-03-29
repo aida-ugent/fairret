@@ -1,4 +1,4 @@
-cff-version: 1.0.0
+cff-version: 1.0.1
 message: "If you use our framework, please cite it as below."
 authors:
   - family-names: "Buyl"
@@ -12,7 +12,7 @@ authors:
 title: "fairret"
 url: "https://openreview.net/pdf?id=NnyD0Rjx2B"
 preferred-citation:
-  type: article
+  type: conference-paper	
   authors:
     - family-names: "Buyl"
       given-names: "Maarten"
