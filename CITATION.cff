@@ -1,4 +1,4 @@
-cff-version: 1.0.1
+cff-version: 1.0.2
 message: "If you use our framework, please cite it as below."
 authors:
   - family-names: "Buyl"
@@ -20,6 +20,6 @@ preferred-citation:
       given-names: "MaryBeth"
     - family-names: "De Bie"
       given-names: "Tijl"
-  title: "Fairret : a framework for differentiable fairness regularization terms"
+  title: "fairret: a Framework for Differentiable Fairness Regularization Terms"
   year: 2024
-  journal: "International Conference on Learning Representations"
+  collection-title: "International Conference on Learning Representations"
