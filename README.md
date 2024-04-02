@@ -1,16 +1,35 @@
-# fairret - a fairness library in PyTorch
-The goal of `fairret` is to serve as an open-source Python library for measuring and mitigating statistical fairness in PyTorch models. The library is designed to be 
+# <span style="font-variant:small-caps;">fairret</span> - a fairness library in PyTorch
+
+[![Licence](https://img.shields.io/github/license/aida-ugent/fairret)](https://github.com/aida-ugent/fairret/blob/main/LICENSE)
+[![PyPI - Version](https://img.shields.io/pypi/v/fairret)](https://pypi.org/project/fairret/)
+![Static Badge](https://img.shields.io/badge/PyTorch-ee4c2c)
+[![Static Badge](https://img.shields.io/badge/Original%20Paper-00a0ff)](https://openreview.net/pdf?id=NnyD0Rjx2B)
+
+## Description
+
+The goal of <span style="font-variant:small-caps;">fairret</span> is to serve as an open-source Python library for measuring and mitigating statistical fairness in PyTorch models. The library is designed to be 
 1. *flexible* in how fairness is defined and pursued.
 2. *easy* to integrate into existing PyTorch pipelines.
 3. *clear* in what its tools can and cannot do.
 
-The central to the library is the paradigm of the _fairness regularization term_ (fairrets) that quantify unfairness as differentiable PyTorch loss functions. 
+The central to the library is the paradigm of the _fairness regularization term_ (<span style="font-variant:small-caps;">fairret</span>s) that quantify unfairness as differentiable PyTorch loss functions. 
 These can then be optimized together with e.g. the binary cross-entropy error such that the classifier improves both its accuracy and fairness.
 
 **The library is still in very early development.** Documentation, installation instructions, and more examples will be added in the near future.
 
-# Quickstart
-It suffices to simply choose a statistic that should be equalized across groups and a fairret that quantifies the gap. The model can then be trained as follows:
+## Installation
+The <span style="font-variant:small-caps;">fairret</span> library can be installed via PyPi:
+
+```
+pip install fairret
+```
+
+### Dependencies
+The required packages in order to run <span style="font-variant:small-caps;">fairret</span> completely can be found in [requirements](https://github.com/aida-ugent/fairret/blob/main/requirements.txt).
+
+## Quickstart
+
+It suffices to simply choose a statistic that should be equalized across groups and a <span style="font-variant:small-caps;">fairret</span> that quantifies the gap. The model can then be trained as follows:
 
 ```python
 import torch.nn.functional as F
@@ -37,17 +56,17 @@ No special data structure is required for the sensitive features. If the trainin
 
 A notebook with a full example pipeline is provided here: [simple_pipeline.ipynb](/examples/simple_pipeline.ipynb).
 
-# Warning: AI fairness != fairness
+## Warning: AI fairness != fairness
 There are many ways in which technical approaches to AI fairness, such as this library, are simplistic and limited in actually achieving fairness in real-world decision processes.
 
 More information on these limitations can be found [here](https://dl.acm.org/doi/full/10.1145/3624700) or [here](https://ojs.aaai.org/index.php/AAAI/article/view/26798).
 
-# Future plans
-The library maintains a core focus on only fairrets for now, yet we plan to add more fairness tools that align with the design principles in the future. These may involve breaking changes. At the same time, we'll keep reviewing the role of this library within the wider ecosystem of fairness toolkits. 
+## Future plans
+The library maintains a core focus on only <span style="font-variant:small-caps;">fairret</span>s for now, yet we plan to add more fairness tools that align with the design principles in the future. These may involve breaking changes. At the same time, we'll keep reviewing the role of this library within the wider ecosystem of fairness toolkits. 
 
 Want to help? Please don't hesitate to open an issue, draft a pull request, or shoot an email to [maarten.buyl@ugent.be](mailto:maarten.buyl@ugent.be).
 
-# Citation
+## Citation
 This framework will be presented as a paper at ICLR 2024. If you found this library useful in your work, please consider citing it as follows:
 
 ```bibtex

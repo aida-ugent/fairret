@@ -1,0 +1,25 @@
+cff-version: 1.0.2
+message: "If you use our framework, please cite it as below."
+authors:
+  - family-names: "Buyl"
+    given-names: "Maarten"
+    orcid: "https://orcid.org/0000-0002-5434-2386"
+  - family-names: "Defrance"
+    given-names: "MaryBeth"
+    orcid: "https://orcid.org/0000-0002-6570-8857"
+  - family-names: "De Bie"
+    given-names: "Tijl"
+title: "fairret"
+url: "https://openreview.net/pdf?id=NnyD0Rjx2B"
+preferred-citation:
+  type: conference-paper	
+  authors:
+    - family-names: "Buyl"
+      given-names: "Maarten"
+    - family-names: "Defrance"
+      given-names: "MaryBeth"
+    - family-names: "De Bie"
+      given-names: "Tijl"
+  title: "fairret: a Framework for Differentiable Fairness Regularization Terms"
+  year: 2024
+  collection-title: "International Conference on Learning Representations"
