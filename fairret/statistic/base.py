@@ -8,7 +8,7 @@ class Statistic(abc.ABC, torch.nn.Module):
     Abstract base class for a statistic.
 
     As a subclass of torch.nn.Module, it should implement the forward method with the
-    'forward(self, pred, sens, *stat_args, **stat_kwargs)' signature.
+    'forward(self, pred, sens, \*stat_args, \*\*stat_kwargs)' signature.
     """
 
     @abc.abstractmethod
