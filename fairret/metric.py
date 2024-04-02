@@ -7,7 +7,7 @@ except ImportError:
     raise ImportError("The 'torchmetrics' package must be installed to use the LinearFractionalParity metric.")
 
 from .statistic import LinearFractionalStatistic
-from .utils import safe_div
+from fairret.utils import safe_div
 
 
 def gap_abs_max(vals: torch.Tensor, target_val: float) -> float:

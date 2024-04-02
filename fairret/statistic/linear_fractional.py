@@ -2,7 +2,7 @@ import abc
 from typing import Any, Tuple
 import torch
 
-from utils import safe_div
+from fairret.utils import safe_div
 from .base import Statistic
 
 
