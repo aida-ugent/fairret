@@ -45,8 +45,8 @@ class ViolationLoss(FairnessLoss):
         Abstract method that should be implemented by subclasses to calculate the loss.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
-                classification or regression, it can be :math:`C = 1`.
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+                classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: Any further arguments used to compute the statistic.
             pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are
@@ -74,9 +74,12 @@ class ViolationLoss(FairnessLoss):
                                  f"provide a value for 'c'.")
 
         stats = self.statistic(pred, sens, *stat_args, **stat_kwargs)
-        if target_statistic == 0.:
-            loss = stats.sum()
-            return loss
+
+        # TODO should be more formal about penalization when target statistics are zero.
+        # TODO does not work for stacked statistics.
+        if any(target_statistic == 0.):
+            raise NotImplementedError("Target statistic is zero. Penalization for this edge case is not implemented.")
+
         violation = torch.abs(stats / target_statistic - 1)
 
         loss = self.penalize_violation(violation)

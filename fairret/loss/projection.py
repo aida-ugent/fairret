@@ -137,7 +137,8 @@ class ProjectionLoss(FairnessLoss):
         distance between the predictions and the projection.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, 1)` for the task of binary classification.
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+                classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: Any further arguments used to compute the statistic.
             pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are

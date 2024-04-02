@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Tuple
+from typing import Any, Tuple, Optional
 import torch
 
 from utils import safe_div
@@ -85,33 +85,36 @@ class LinearFractionalStatistic(Statistic):
         """
         raise NotImplementedError
 
-    def nom(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
+    def nom(self, pred: torch.Tensor, sens: Optional[torch.Tensor], *stat_args: Any, **stat_kwargs: Any
+            ) -> torch.Tensor:
         """
         Intermediate function to compute the numerator of the linear-fractional statistic.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
-                classification or regression, it can be :math:`C = 1`.
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+                classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+                If None, the statistic is computed over all samples, ignoring the sensitive feature.
             *stat_args: Any further arguments used to compute the statistic.
             **stat_kwargs: Any keyword arguments used to compute the statistic.
 
         Returns:
             torch.Tensor: Shape :math:`(S)`.
         """
+        intercept = self.nom_intercept(*stat_args, **stat_kwargs)
+        slope = self.nom_slope(*stat_args, **stat_kwargs)
+        return self.__compute_nom_or_denom(pred, sens, intercept, slope)
 
-        nom = self.nom_intercept(*stat_args, **stat_kwargs) + self.nom_slope(*stat_args, **stat_kwargs) * pred
-        nom = sens * nom
-        return nom.sum(dim=0)
-
-    def denom(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
+    def denom(self, pred: torch.Tensor, sens: Optional[torch.Tensor], *stat_args: Any, **stat_kwargs: Any
+              ) -> torch.Tensor:
         """
         Intermediate function to compute the denominator of the linear-fractional statistic.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
-                classification or regression, it can be :math:`C = 1`.
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+                classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+                If None, the statistic is computed over all samples, ignoring the sensitive feature.
             *stat_args: Any further arguments used to compute the statistic.
             **stat_kwargs: Any keyword arguments used to compute the statistic.
 
@@ -119,11 +122,39 @@ class LinearFractionalStatistic(Statistic):
             torch.Tensor: Shape :math:`(S)`.
         """
 
-        denom = self.denom_intercept(*stat_args, **stat_kwargs) + self.denom_slope(*stat_args, **stat_kwargs) * pred
-        denom = sens * denom
-        return denom.sum(dim=0)
+        intercept = self.denom_intercept(*stat_args, **stat_kwargs)
+        slope = self.denom_slope(*stat_args, **stat_kwargs)
+        return self.__compute_nom_or_denom(pred, sens, intercept, slope)
 
-    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
+    @staticmethod
+    def __compute_nom_or_denom(pred: torch.Tensor, sens: Optional[torch.Tensor], intercept: torch.Tensor,
+                               slope: torch.Tensor) -> torch.Tensor:
+        """
+        Shorthand function to deduplicate the nom and denom functions, given the intercept and slope functions.
+
+        Args:
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+                classification or regression.
+            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+                If None, the statistic is computed over all samples, ignoring the sensitive feature.
+            intercept (torch.Tensor): The intercept of the linear function.
+            slope (torch.Tensor): The slope of the linear function.
+        """
+        if isinstance(slope, float) or len(slope.shape) == 0:
+            linear_expression = intercept + slope * pred
+        elif len(slope.shape) >= 2:
+            linear_expression = intercept + torch.einsum('n...y,ny->n...y', slope, pred)
+        else:
+            raise ValueError("The slope should be a scalar or a tensor with at least as many dimensions as the 'pred' "
+                             "tensor.")
+
+        if sens is None:
+            return linear_expression.sum(dim=0)
+        else:
+            return torch.einsum('n...y,ns->n...s', linear_expression, sens).sum(dim=0)
+
+    def forward(self, pred: torch.Tensor, sens: Optional[torch.Tensor], *stat_args: Any, **stat_kwargs: Any
+                ) -> torch.Tensor:
         nom = self.nom(pred, sens, *stat_args, **stat_kwargs)
         denom = self.denom(pred, sens, *stat_args, **stat_kwargs)
         return safe_div(nom, denom)
@@ -131,21 +162,21 @@ class LinearFractionalStatistic(Statistic):
     def overall_statistic(self, pred: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
         """
         Compute the overall statistic for the predictions. This is the value of the statistic when the sensitive feature
-        is ignored, i.e. set to 1. The predictions are typically considered fair (with respect to the statistic) if and
-        only if the statistic computed for every sensitive feature equals this value.
+        is ignored, i.e. None. The predictions are typically considered fair (with respect to the statistic) if and only
+        if the statistic computed for every sensitive feature equals this value.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
-                classification or regression, it can be :math:`C = 1`.
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+                classification or regression.
             *stat_args: Any further arguments used to compute the statistic.
             **stat_kwargs: Any keyword arguments used to compute the statistic.
 
         Returns:
             torch.Tensor: The overall statistic as a scalar tensor.
         """
-        return self.forward(pred, 1., *stat_args, **stat_kwargs)
+        return self.forward(pred, None, *stat_args, **stat_kwargs)
 
-    def fixed_constraint(self, fix_value: float, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any
+    def fixed_constraint(self, fix_value: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any
                          ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Reformulate the fairness definition for this LinearFractionalStatistic as a linear constraint.
@@ -155,8 +186,8 @@ class LinearFractionalStatistic(Statistic):
         linear constraint.
 
         Args:
-            fix_value (float): The intended value of the statistic for every sensitive feature. Typically, this is the
-                overall statistic.
+            fix_value (torch.Tensor): The intended value of the statistic for every sensitive feature. Typically, this
+                is the overall statistic.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: Any further arguments used to compute the statistic.
             **stat_kwargs: Any keyword arguments used to compute the statistic.
@@ -165,12 +196,21 @@ class LinearFractionalStatistic(Statistic):
             Tuple[torch.Tensor, torch.Tensor]: The intercept and slope of the linear constraint defined as
             :math:`intercept + slope * pred = 0`.
         """
+        nom_intercept = self.nom_intercept(*stat_args, **stat_kwargs)
+        denom_intercept = self.denom_intercept(*stat_args, **stat_kwargs)
+        if isinstance(denom_intercept, float) or len(denom_intercept.shape) == 0:
+            intercept = nom_intercept - denom_intercept * fix_value
+        else:
+            intercept = nom_intercept - torch.einsum('n...y,...y->n...y', denom_intercept, fix_value)
+        intercept = torch.einsum('n...y,ns->n...s', intercept, sens).flatten(start_dim=1)
 
-        intercept = self.nom_intercept(*stat_args, **stat_kwargs) - self.denom_intercept(*stat_args,
-                                                                                         **stat_kwargs) * fix_value
-        intercept = sens * intercept
-        slope = self.nom_slope(*stat_args, **stat_kwargs) - self.denom_slope(*stat_args, **stat_kwargs) * fix_value
-        slope = sens * slope
+        nom_slope = self.nom_slope(*stat_args, **stat_kwargs)
+        denom_slope = self.denom_slope(*stat_args, **stat_kwargs)
+        if isinstance(denom_slope, float) or len(denom_slope.shape) == 0:
+            slope = nom_slope - denom_slope * fix_value
+        else:
+            slope = nom_slope - torch.einsum('n...y,...y->...', denom_slope, fix_value)
+        slope = torch.einsum('n...y,ns->n...s', slope, sens).flatten(start_dim=1)
         return intercept, slope
 
 
@@ -352,3 +392,51 @@ class FalseNegativeFalsePositiveFraction(LinearFractionalStatistic):
 
     def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
         return 1 - label
+
+
+class StackedLinearFractionalStatistic(LinearFractionalStatistic):
+    """
+    A vector-valued LinearFractionalStatistic that combines the outputs of K LinearFractionalStatistics into a single
+    statistic with output (K, S) by stacking all outputs in the first dimension.
+    """
+
+    def __init__(self, *statistics: LinearFractionalStatistic):
+        """
+        Args:
+            *statistics: The LinearFractionalStatistics to be stacked.
+        """
+
+        super().__init__()
+
+        if len(statistics) == 0:
+            raise ValueError("At least one statistic should be provided.")
+        if any(not isinstance(stat, LinearFractionalStatistic) for stat in statistics):
+            raise ValueError("All statistics should be instances of LinearFractionalStatistic.")
+
+        self.statistics = torch.nn.ModuleList(statistics)
+
+    def nom_intercept(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        return self.__stack('nom_intercept', *args, **kwargs)
+
+    def nom_slope(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        return self.__stack('nom_slope', *args, **kwargs)
+
+    def denom_intercept(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        return self.__stack('denom_intercept', *args, **kwargs)
+
+    def denom_slope(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        return self.__stack('denom_slope', *args, **kwargs)
+
+    @staticmethod
+    def __ensure_shape(val: torch.Tensor) -> torch.Tensor:
+        if not isinstance(val, torch.Tensor):
+            val = torch.tensor(val)
+        if len(val.shape) == 0:
+            val = val.view(1, 1)
+        return val
+
+    def __stack(self, method: str, *args: Any, **kwargs: Any) -> torch.Tensor:
+        return torch.stack([
+            self.__ensure_shape(getattr(stat, method)(*args, **kwargs))
+            for stat in self.statistics
+        ], dim=1)

@@ -17,8 +17,8 @@ class Statistic(abc.ABC, torch.nn.Module):
         Compute the statistic for a batch of `N` samples for each sensitive feature.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
-                classification or regression, it can be :math:`C = 1`.
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+                classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: Any further arguments used to compute the statistic.
             **stat_kwargs: Any keyword arguments used to compute the statistic.

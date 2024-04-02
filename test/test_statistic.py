@@ -2,7 +2,8 @@ import pytest
 import torch
 
 from fairret.statistic import (PositiveRate, TruePositiveRate, FalsePositiveRate, PositivePredictiveValue,
-                               FalseOmissionRate, Accuracy, FalseNegativeFalsePositiveFraction)
+                               FalseOmissionRate, Accuracy, FalseNegativeFalsePositiveFraction,
+                               StackedLinearFractionalStatistic)
 
 
 @pytest.fixture
@@ -34,3 +35,14 @@ def test_statistic(easy_data, stat_vals):
     else:
         computed_stat = stat(pred, sens, label)
     assert torch.allclose(computed_stat, torch.tensor(expected), atol=1e-2)
+
+
+def test_statistic_tensor(easy_data):
+    equalised_odds = StackedLinearFractionalStatistic(TruePositiveRate(), FalsePositiveRate())
+
+    pred, sens, label = easy_data
+    combined_stat = equalised_odds(pred, sens, label)
+    tpr = TruePositiveRate()(pred, sens, label)
+    fpr = FalsePositiveRate()(pred, sens, label)
+
+    assert torch.allclose(combined_stat, torch.stack([tpr, fpr]), atol=1e-2)

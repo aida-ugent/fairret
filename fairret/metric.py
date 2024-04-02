@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, Tuple, Union
 import torch
 
 try:
@@ -23,7 +23,7 @@ def gap_abs_max(vals: torch.Tensor, target_val: float) -> float:
         float: The maximal gap.
     """
 
-    return (torch.abs(vals - target_val)).max()
+    return torch.amax(torch.abs(vals - target_val), dim=-1)
 
 
 def gap_relative_abs_max(vals: torch.Tensor, target_val: float) -> float:
@@ -38,7 +38,7 @@ def gap_relative_abs_max(vals: torch.Tensor, target_val: float) -> float:
     Returns:
         float: The maximal gap.
     """
-    return (torch.abs(vals / target_val - 1)).max()
+    return torch.amax(torch.abs(vals / target_val - 1), dim=-1)
 
 
 class LinearFractionalParity(torchmetrics.Metric):
@@ -65,13 +65,16 @@ class LinearFractionalParity(torchmetrics.Metric):
 
     def __init__(self,
                  statistic: LinearFractionalStatistic,
-                 sens_dim: int,
+                 stat_shape: Union[int, Tuple[int]],
                  gap_fn: Callable[[torch.Tensor, float], float] = gap_relative_abs_max,
                  **torchmetrics_kwargs: Any):
         """
         Args:
             statistic (LinearFractionalStatistic): the LinearFractionalStatistic that should be evaluated.
-            sens_dim (int): the number of sensitive features.
+            stat_shape (Union[int, Tuple[int]]): the shape of the statistic, excluding the batch dimension. For example,
+                a single statistic computed for every sensitive feature would have a shape of `(S,)` with `S` the number
+                of sensitive features. If the statistic is a stacked statistic, the shape should be `(K, S)` with `K`
+                the number of statistics in the stack.
             gap_fn (Callable[[torch.Tensor, float], float]): the function that computes the gaps between the statistic
                 for every sensitive feature and the overall statistic. The default is the absolute maximum of the
                 relative gaps.
@@ -80,13 +83,15 @@ class LinearFractionalParity(torchmetrics.Metric):
 
         super().__init__(**torchmetrics_kwargs)
         self.stat = statistic
-        self.sens_dim = sens_dim
+        self.stat_shape = (stat_shape,) if isinstance(stat_shape, int) else stat_shape
         self.gap_fn = gap_fn
 
-        self.add_state('nom', default=torch.zeros(self.sens_dim, dtype=torch.float), dist_reduce_fx='sum')
-        self.add_state('denom', default=torch.zeros(self.sens_dim, dtype=torch.float), dist_reduce_fx='sum')
-        self.add_state('overall_nom', default=torch.zeros(1, dtype=torch.float), dist_reduce_fx='sum')
-        self.add_state('overall_denom', default=torch.zeros(1, dtype=torch.float), dist_reduce_fx='sum')
+        self.add_state('nom', default=torch.zeros(self.stat_shape, dtype=torch.float), dist_reduce_fx='sum')
+        self.add_state('denom', default=torch.zeros(self.stat_shape, dtype=torch.float), dist_reduce_fx='sum')
+
+        overall_shape = (*(self.stat_shape[1:]), 1)
+        self.add_state('overall_nom', default=torch.zeros(overall_shape, dtype=torch.float), dist_reduce_fx='sum')
+        self.add_state('overall_denom', default=torch.zeros(overall_shape, dtype=torch.float), dist_reduce_fx='sum')
 
     def update(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> None:
         """
@@ -94,20 +99,20 @@ class LinearFractionalParity(torchmetrics.Metric):
         batch of predictions and sensitive features.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, C)` with `C` the number of classes. For binary
-                classification or regression, it can be :math:`C = 1`.
+            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+                classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: Any further arguments used to compute the statistic.
             **stat_kwargs: Any keyword arguments used to compute the statistic.
         """
 
-        if sens.shape[1] != self.sens_dim:
-            raise ValueError(f"Expected sens to have shape (N, {self.sens_dim}), got {sens.shape}")
+        if sens.shape[1] != self.stat_shape[-1]:
+            raise ValueError(f"Expected sens to have shape (N, {self.stat_shape[-1]}, got {sens.shape}")
 
         self.nom += self.stat.nom(pred, sens, *stat_args, **stat_kwargs)
         self.denom += self.stat.denom(pred, sens, *stat_args, **stat_kwargs)
-        self.overall_nom += self.stat.nom(pred, 1., *stat_args, **stat_kwargs)
-        self.overall_denom += self.stat.denom(pred, 1., *stat_args, **stat_kwargs)
+        self.overall_nom += self.stat.nom(pred, None, *stat_args, **stat_kwargs)
+        self.overall_denom += self.stat.denom(pred, None, *stat_args, **stat_kwargs)
 
     def compute(self) -> float:
         """

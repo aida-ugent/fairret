@@ -7,5 +7,6 @@ from .linear_fractional import (
     PositivePredictiveValue,
     FalseOmissionRate,
     Accuracy,
-    FalseNegativeFalsePositiveFraction
+    FalseNegativeFalsePositiveFraction,
+    StackedLinearFractionalStatistic
 )
