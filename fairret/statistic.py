@@ -40,8 +40,8 @@ class LinearFractionalStatistic(Statistic):
     and denominator linear functions, i.e. the functions nom_intercept, nom_slope, denom_intercept, and denom_slope.
     Each subclass must implement these functions (using any signature).
 
-    The statistic is then computed as :math:`\\frac{nom\_intercept + nom\_slope * pred}{denom\_intercept + denom\_slope
-    * pred}`.
+    The statistic is then computed as :math:`\\frac{nom\\_intercept + nom\\_slope * pred}{denom\\_intercept +
+    denom\\_slope * pred}`.
     """
 
     # The following methods violate the Liskov Substitution Principle (LSP) because they are implemented more generally
@@ -124,7 +124,7 @@ class LinearFractionalStatistic(Statistic):
         Returns:
             torch.Tensor: Shape :math:`(S)`.
         """
-        
+
         nom = self.nom_intercept(*stat_args, **stat_kwargs) + self.nom_slope(*stat_args, **stat_kwargs) * pred
         nom = sens * nom
         return nom.sum(dim=0)
@@ -191,7 +191,8 @@ class LinearFractionalStatistic(Statistic):
             :math:`intercept + slope * pred = 0`.
         """
 
-        intercept = self.nom_intercept(*stat_args, **stat_kwargs) - self.denom_intercept(*stat_args, **stat_kwargs) * fix_value
+        intercept = self.nom_intercept(*stat_args, **stat_kwargs) - self.denom_intercept(*stat_args,
+                                                                                         **stat_kwargs) * fix_value
         intercept = sens * intercept
         slope = self.nom_slope(*stat_args, **stat_kwargs) - self.denom_slope(*stat_args, **stat_kwargs) * fix_value
         slope = sens * slope
@@ -203,8 +204,8 @@ class PositiveRate(LinearFractionalStatistic):
     PositiveRate is a LinearFractionalStatistic that computes the average rate at which positive predictions are made in
     binary classification.
 
-    Formulated as a probability, it computes :math:`P(\hat{Y} = 1 | S)` for categorical sensitive features :math:`S`,
-    with the predicted label :math:`\hat{Y}` sampled according to the model's (probabilistic) prediction.
+    Formulated as a probability, it computes :math:`P(\\hat{Y} = 1 | S)` for categorical sensitive features :math:`S`,
+    with the predicted label :math:`\\hat{Y}` sampled according to the model's (probabilistic) prediction.
 
     The functions of its canonical form take no arguments.
     """
@@ -227,9 +228,9 @@ class TruePositiveRate(LinearFractionalStatistic):
     TruePositiveRate is a LinearFractionalStatistic that computes the average rate at which positives are actually
     predicted as positives, also known as the recall.
 
-    Formulated as a probability, it computes :math:`P(\hat{Y} = 1 | Y = 1, S)` for categorical sensitive features
+    Formulated as a probability, it computes :math:`P(\\hat{Y} = 1 | Y = 1, S)` for categorical sensitive features
     :math:`S` and only for samples where the target label :math:`Y` is positive, with the predicted label
-    :math:`\hat{Y}` sampled according to the model's (probabilistic) prediction.
+    :math:`\\hat{Y}` sampled according to the model's (probabilistic) prediction.
 
     The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
     predictions.
@@ -253,9 +254,9 @@ class FalsePositiveRate(LinearFractionalStatistic):
     FalsePositiveRate is a LinearFractionalStatistic that computes the average rate at which negatives are actually
     predicted as positives.
 
-    Formulated as a probability, it computes :math:`P(\hat{Y} = 1 | Y = 0, S)` for categorical sensitive features
+    Formulated as a probability, it computes :math:`P(\\hat{Y} = 1 | Y = 0, S)` for categorical sensitive features
     :math:`S` and only for samples where the target label :math:`Y` is negative, with the predicted label
-    :math:`\hat{Y}` sampled according to the model's (probabilistic) prediction.
+    :math:`\\hat{Y}` sampled according to the model's (probabilistic) prediction.
 
     The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
     predictions.
@@ -279,7 +280,7 @@ class PositivePredictiveValue(LinearFractionalStatistic):
     PositivePredictiveValue is a LinearFractionalStatistic that computes the average rate at which the predicted
     positives were actually labeled positive, also known as the precision.
 
-    Formulated as a probability, it computes :math:`P(Y = 1 | \hat{Y} = 1, S)` for categorical sensitive features
+    Formulated as a probability, it computes :math:`P(Y = 1 | \\hat{Y} = 1, S)` for categorical sensitive features
     :math:`S` and only for samples where the predicted label (sampled according to the model's (probabilistic)
     prediction) is positive, with :math:`Y` the target label.
 
@@ -305,7 +306,7 @@ class FalseOmissionRate(LinearFractionalStatistic):
     FalseOmissionRate is a LinearFractionalStatistic that computes the average rate at which the predicted
     negatives were actually labeled positive, also known as the precision.
 
-    Formulated as a probability, it computes :math:`P(Y = 1 | \hat{Y} = 0, S)` for categorical sensitive features
+    Formulated as a probability, it computes :math:`P(Y = 1 | \\hat{Y} = 0, S)` for categorical sensitive features
     :math:`S` and only for samples where the predicted label (sampled according to the model's (probabilistic)
     prediction) is negative, with :math:`Y` the target label.
 
@@ -331,8 +332,8 @@ class Accuracy(LinearFractionalStatistic):
     Accuracy is a LinearFractionalStatistic that computes the average rate at which predictions match the actual target
     labels.
 
-    Formulated as a probability, it computes :math:`P(\hat{Y} = Y | S)` for categorical sensitive features :math:`S`,
-    with the predicted label :math:`\hat{Y}` sampled according to the model's (probabilistic) prediction and with
+    Formulated as a probability, it computes :math:`P(\\hat{Y} = Y | S)` for categorical sensitive features :math:`S`,
+    with the predicted label :math:`\\hat{Y}` sampled according to the model's (probabilistic) prediction and with
     :math:`Y` the target label.
 
     The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
