@@ -41,13 +41,15 @@ class ProjectionLoss(FairnessLoss):
                 normalization, the maximum value in binary classification is then also 1 - proj_eps. Setting this to
                 a small, non-negative value helps prevent numerical instability if the optimization is not done to
                 convergence.
-            solver_kwargs: Any keyword arguments to be passed to the cvxpy solver. The default configuration is:
+            solver_kwargs: Any keyword arguments to be passed to the cvxpy solver. The default configuration is::
+
                 {
                     'solver': 'SCS',
                     'warm_start': True,
                     'max_iters': 10,
                     'ignore_dpp': True
                 }
+                
         """
 
         super().__init__()
