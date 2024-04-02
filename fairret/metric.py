@@ -6,7 +6,7 @@ try:
 except ImportError:
     raise ImportError("The 'torchmetrics' package must be installed to use the LinearFractionalParity metric.")
 
-from .statistic import LinearFractionalStatistic
+from fairret.statistic import LinearFractionalStatistic
 from fairret.utils import safe_div
 
 
