@@ -1,7 +1,19 @@
-import abc
+# The code block below uses PEP 563 to make cvxpy optional to load.
+# The __future__ import will be deprecated, but the fix will only come with PEP 649 in the future.
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    # The dependency is not optional when type checking.
+    import cvxpy as cp
+else:
+    try:
+        import cvxpy as cp
+    except ImportError:
+        cp = None
+
 from typing import Any, Tuple
+import abc
 import torch
-import cvxpy as cp
 
 from .base import FairnessLoss
 from ..statistic import LinearFractionalStatistic
@@ -26,12 +38,13 @@ class ProjectionLoss(FairnessLoss):
         https://en.wikipedia.org/wiki/Statistical_distance for more information.
     """
 
-    def __init__(self, stat: LinearFractionalStatistic, force_proj_normalized=True, proj_eps=0., **solver_kwargs: Any):
+    def __init__(self, statistic: LinearFractionalStatistic, force_proj_normalized=True, proj_eps=0.,
+                 **solver_kwargs: Any):
         """
         Args:
-            stat (LinearFractionalStatistic): The LinearFractionalStatistic that defines the fairness constraint. The
-                projection is computed through convex optimization, so the constraint should be linear. This is achieved
-                by fixing equality in the LinearFractionalStatistic values to the overall statistic.
+            statistic (LinearFractionalStatistic): The LinearFractionalStatistic that defines the fairness constraint.
+                The projection is computed through convex optimization, so the constraint should be linear. This is
+                achieved by fixing equality in the LinearFractionalStatistic values to the overall statistic.
             force_proj_normalized (bool): Whether to force the projected distribution to be normalized. This might not
                 be the case if the optimization does not converge to a solution that satisfies the normalization
                 constraint. Hence, setting this to True will renormalize the projected distribution to sum to 1.
@@ -51,9 +64,12 @@ class ProjectionLoss(FairnessLoss):
                 }
                 
         """
+        if cp is None:
+            raise ImportError("The cvxpy package is required for ProjectionLosses. Please install it using "
+                              "`pip install cvxpy`.")
 
         super().__init__()
-        self.stat = stat
+        self.statistic = statistic
         self.force_proj_normalized = force_proj_normalized
         self.proj_eps = proj_eps
         self.solver_kwargs = {
@@ -105,8 +121,9 @@ class ProjectionLoss(FairnessLoss):
         Args:
             pred (torch.Tensor): The predicted distribution in shape (N,1). As we assume binary classification, this is
                 the probability of the positive class.
-            proj (torch.Tensor): The projected distribution in shape (N,1). As we assume binary classification, this is
-                the probability of the positive class.
+            proj (torch.Tensor): The projected distribution in shape (N,2). As we assume binary classification, the
+                first column is the probability of the negative class and the second column is the probability of the
+                positive class.
 
         Returns:
             torch.Tensor: The statistical distance as a scalar tensor.
@@ -123,8 +140,9 @@ class ProjectionLoss(FairnessLoss):
         Args:
             pred (torch.Tensor): The predicted distribution as logits, in shape (N,1). As we assume binary
                 classification, this is the logit of the probability of the positive class.
-            proj (torch.Tensor): The projected distribution in shape (N,1). As we assume binary classification, this is
-                the probability of the positive class.
+            proj (torch.Tensor): The projected distribution in shape (N,2) as probabilities. As we assume binary
+                classification, the first column is the probability of the negative class and the second column is the
+                probability of the positive class.
 
         Returns:
             torch.Tensor: The statistical distance as a scalar tensor.
@@ -229,11 +247,11 @@ class ProjectionLoss(FairnessLoss):
 
         # Constrain the fair set to those where the statistics match the target_statistic.
         # Here, we choose target_statistic as the overall statistic of the predictions.
-        target_statistic = self.stat.overall_statistic(pred, *stat_args, **stat_kwargs)
+        target_statistic = self.statistic.overall_statistic(pred, *stat_args, **stat_kwargs)
 
         # Based on the target_statistic and the feature-specific statistic, we precompute the intercept and slope of the
         # linear fairness constraint.
-        intercept, slope = self.stat.fixed_constraint(target_statistic, sens, *stat_args, **stat_kwargs)
+        intercept, slope = self.statistic.fixed_constraint(target_statistic, sens, *stat_args, **stat_kwargs)
         intercept = intercept.sum(dim=0)
 
         # If this is the first time the loss is called, initialize the convex optimization problem.

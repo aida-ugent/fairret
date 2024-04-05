@@ -4,7 +4,8 @@ import torch
 try:
     import torchmetrics
 except ImportError:
-    raise ImportError("The 'torchmetrics' package must be installed to use the LinearFractionalParity metric.")
+    raise ImportError("The 'torchmetrics' package must be installed to use the LinearFractionalParity metric. Please "
+                      "install it using `pip install torchmetrics`.")
 
 from fairret.statistic import LinearFractionalStatistic
 from fairret.utils import safe_div
