@@ -25,7 +25,7 @@ pip install fairret
 ```
 
 ### Dependencies
-The required packages in order to run fairret completely can be found in [requirements](https://github.com/aida-ugent/fairret/blob/main/requirements.txt).
+A minimal list of dependencies is provided in [pyproject.toml](https://github.com/aida-ugent/fairret/blob/main/pyproject.toml). If the library is installed locally, the required packages can be installed via `pip install .`
 
 ## Quickstart
 
