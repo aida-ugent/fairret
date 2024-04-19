@@ -26,12 +26,14 @@ class ProjectionLoss(FairnessLoss):
     corresponding to a LinearFractionalStatistic that is fixed to a target value (such as the overall statistic).
 
     The projections are computed using cvxpy. Hence, any subclass is expected to implement the statistical distance
-    between distributions in both cvxpy and PyTorch by implementing the `cvxpy_distance` method and the `torch_distance`
-    method respectively.
+    between distributions in both cvxpy and PyTorch by implementing the
+    :func:`~projection.ProjectionLoss.cvxpy_distance` method and the
+    :func:`~projection.ProjectionLoss.torch_distance` method respectively.
 
-    Optionally, the `torch_distance_with_logits` method can be implemented to handle the case where the predictions are
-    provided as logits. By default, this method simply calls `torch_distance` after applying the sigmoid function to the
-    predictions.
+    Optionally, the :func:`~projection.ProjectionLoss.torch_distance_with_logits` method can be overwritten to
+    provide a more numerically stable handling of predictions that are provided as logits. If left unimplemented,
+    :func:`~projection.ProjectionLoss.torch_distance` will be called instead, after applying the sigmoid function to
+    the predictions.
 
     Note:
         We use 'statistical distance' in a broad sense here, and do not require that the distance is a metric. See
@@ -92,9 +94,7 @@ class ProjectionLoss(FairnessLoss):
     @abc.abstractmethod
     def cvxpy_distance(self, pred: cp.Parameter, proj: cp.Variable) -> cp.Expression:
         """
-        Compute the statistical distance between two distributions in cvxpy. Used for the convex optimization problem.
-
-        This method should be implemented by all subclasses.
+        Compute the statistical distance between `pred` and `proj` in cvxpy. Used for the convex optimization problem.
 
         Args:
             pred (cp.Parameter): The predicted distribution in shape (N,2). As we assume binary classification, the
@@ -113,10 +113,8 @@ class ProjectionLoss(FairnessLoss):
     @abc.abstractmethod
     def torch_distance(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
         """
-        Compute the statistical distance between two distributions in PyTorch. Used for computing the gradient of the
+        Compute the statistical distance between `pred` and `proj` in PyTorch. Used for computing the gradient of the
         distance between the predictions and the projection (with respect to the predictions).
-
-        This method should be implemented by all subclasses.
 
         Args:
             pred (torch.Tensor): The predicted distribution in shape (N,1). As we assume binary classification, this is
@@ -133,9 +131,8 @@ class ProjectionLoss(FairnessLoss):
 
     def torch_distance_with_logits(self, pred, proj):
         """
-        Alternative method to torch_distance, where `pred` is assumed to be logits. By default, this method simply calls
-        `torch_distance` after applying the sigmoid function to the predictions. However, it can be overwritten by
-        subclasses to provide a more numerically stable implementation.
+        A more numerically stable alternative method to :func:`~projection.ProjectionLoss.torch_distance`, where `pred`
+        is assumed to be logits.
 
         Args:
             pred (torch.Tensor): The predicted distribution as logits, in shape (N,1). As we assume binary
@@ -181,10 +178,11 @@ class ProjectionLoss(FairnessLoss):
         proj = proj.clamp(min=self.proj_eps, max=1 - self.proj_eps)
 
         if pred_as_logit:
-            dist = self.torch_distance_with_logits(pred, proj)
-        else:
-            dist = self.torch_distance(pred, proj)
-        return dist
+            try:
+                return self.torch_distance_with_logits(pred, proj)
+            except NotImplementedError:
+                pred = torch.sigmoid(pred)
+        return self.torch_distance(pred, proj)
 
     def _init_cvxpy(self, batch_size: int, constraint_dim: int
                     ) -> Tuple[Tuple[cp.Parameter, cp.Variable, cp.Parameter, cp.Parameter], cp.Problem]:

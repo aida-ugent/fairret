@@ -48,7 +48,7 @@ class LinearFractionalParity(torchmetrics.Metric):
     LinearFractionalStatistic for every sensitive feature.
 
     The metric maintains two pairs of running sums: one for the statistic for every sensitive feature, and one for the
-    overall statistic. Each pair of running sums consists of the nominator and the denominator for those statistics.
+    overall statistic. Each pair of running sums consists of the numerator and the denominator for those statistics.
     Observations are added to these sums by calling the `update` method. The final fairness gap is computed by calling
     the `compute` method, which also resets the internal state of the metric.
 
@@ -87,16 +87,16 @@ class LinearFractionalParity(torchmetrics.Metric):
         self.stat_shape = (stat_shape,) if isinstance(stat_shape, int) else stat_shape
         self.gap_fn = gap_fn
 
-        self.add_state('nom', default=torch.zeros(self.stat_shape, dtype=torch.float), dist_reduce_fx='sum')
+        self.add_state('num', default=torch.zeros(self.stat_shape, dtype=torch.float), dist_reduce_fx='sum')
         self.add_state('denom', default=torch.zeros(self.stat_shape, dtype=torch.float), dist_reduce_fx='sum')
 
         overall_shape = (*(self.stat_shape[1:]), 1)
-        self.add_state('overall_nom', default=torch.zeros(overall_shape, dtype=torch.float), dist_reduce_fx='sum')
+        self.add_state('overall_num', default=torch.zeros(overall_shape, dtype=torch.float), dist_reduce_fx='sum')
         self.add_state('overall_denom', default=torch.zeros(overall_shape, dtype=torch.float), dist_reduce_fx='sum')
 
     def update(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> None:
         """
-        Update the running sums for the nominator and denominator of the groupwise and overall statistics with a new
+        Update the running sums for the numerator and denominator of the groupwise and overall statistics with a new
         batch of predictions and sensitive features.
 
         Args:
@@ -110,14 +110,14 @@ class LinearFractionalParity(torchmetrics.Metric):
         if sens.shape[1] != self.stat_shape[-1]:
             raise ValueError(f"Expected sens to have shape (N, {self.stat_shape[-1]}, got {sens.shape}")
 
-        self.nom += self.stat.nom(pred, sens, *stat_args, **stat_kwargs)
+        self.num += self.stat.num(pred, sens, *stat_args, **stat_kwargs)
         self.denom += self.stat.denom(pred, sens, *stat_args, **stat_kwargs)
-        self.overall_nom += self.stat.nom(pred, None, *stat_args, **stat_kwargs)
+        self.overall_num += self.stat.num(pred, None, *stat_args, **stat_kwargs)
         self.overall_denom += self.stat.denom(pred, None, *stat_args, **stat_kwargs)
 
     def compute(self) -> float:
         """
-        Divide the running sums of the nominator and denominator of the groupwise and overall statistics and compute the
+        Divide the running sums of the numerator and denominator of the groupwise and overall statistics and compute the
         final gaps between the groupwise and overall statistics, according to the `gap_fn`.
 
         The internal state of the metric is reset after calling this method.
@@ -126,6 +126,6 @@ class LinearFractionalParity(torchmetrics.Metric):
             float: The final fairness gap.
         """
 
-        stats = safe_div(self.nom, self.denom)
-        overall_stat = safe_div(self.overall_nom, self.overall_denom)
+        stats = safe_div(self.num, self.denom)
+        overall_stat = safe_div(self.overall_num, self.overall_denom)
         return self.gap_fn(stats, overall_stat)

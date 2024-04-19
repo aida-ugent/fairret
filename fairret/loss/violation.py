@@ -28,7 +28,7 @@ class ViolationLoss(FairnessLoss):
     @abc.abstractmethod
     def penalize_violation(self, violation) -> torch.Tensor:
         """
-        Assign a penalty to the fairness violation.
+        Penalize the fairness violation.
 
         Args:
             violation (torch.Tensor): The violation vector, i.e. the vector of gaps between the statistics per sensitive
@@ -42,7 +42,8 @@ class ViolationLoss(FairnessLoss):
     def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=True,
                 target_statistic: Optional[torch.Tensor] = None, **stat_kwargs: Any) -> torch.Tensor:
         """
-        Abstract method that should be implemented by subclasses to calculate the loss.
+        Calculate the violation vector in relation to the `target_statistic` and penalize this violation using the
+        :func:`~violation.ViolationLoss.penalize_violation` method implemented by the subclass.
 
         Args:
             pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
@@ -76,7 +77,6 @@ class ViolationLoss(FairnessLoss):
         stats = self.statistic(pred, sens, *stat_args, **stat_kwargs)
 
         # TODO should be more formal about penalization when target statistics are zero.
-        # TODO does not work for stacked statistics.
         if any(target_statistic == 0.):
             raise NotImplementedError("Target statistic is zero. Penalization for this edge case is not implemented.")
 
