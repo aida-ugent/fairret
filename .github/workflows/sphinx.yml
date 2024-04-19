@@ -21,18 +21,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     permissions:
+      pages: write
       id-token: write
-      contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Build HTML
-        uses: ammaraskar/sphinx-action@master
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: html-docs
-          path: docs/build/html/
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+    - id: deployment
+      uses: sphinx-notes/pages@v3
