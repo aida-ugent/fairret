@@ -275,7 +275,7 @@ class TruePositiveRate(LinearFractionalStatistic):
 
     def num_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`Y'
+        :math:`Y`
         """
         return label
 
@@ -313,7 +313,7 @@ class FalsePositiveRate(LinearFractionalStatistic):
 
     def num_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1 - Y'
+        :math:`1 - Y`
         """
         return 1 - label
 
