@@ -8,5 +8,6 @@ from .linear_fractional import (
     FalseOmissionRate,
     Accuracy,
     FalseNegativeFalsePositiveFraction,
+    FScore,
     StackedLinearFractionalStatistic
 )

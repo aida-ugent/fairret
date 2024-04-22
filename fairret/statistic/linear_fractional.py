@@ -231,25 +231,25 @@ class PositiveRate(LinearFractionalStatistic):
 
     def num_intercept(self) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
     def num_slope(self) -> torch.Tensor:
         """
-        :math:`1`
+        :math:`= 1`
         """
         return 1.
 
     def denom_intercept(self) -> torch.Tensor:
         """
-        :math:`1`
+        :math:`= 1`
         """
         return 1.
 
     def denom_slope(self) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
@@ -269,25 +269,25 @@ class TruePositiveRate(LinearFractionalStatistic):
 
     def num_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
     def num_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`Y`
+        :math:`= Y`
         """
         return label
 
     def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`Y`
+        :math:`= Y`
         """
         return label
 
     def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
@@ -307,25 +307,25 @@ class FalsePositiveRate(LinearFractionalStatistic):
 
     def num_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
     def num_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1 - Y`
+        :math:`= 1 - Y`
         """
         return 1 - label
 
     def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1 - Y`
+        :math:`= 1 - Y`
         """
         return 1 - label
 
     def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
@@ -345,25 +345,25 @@ class PositivePredictiveValue(LinearFractionalStatistic):
 
     def num_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
     def num_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`Y`
+        :math:`= Y`
         """
         return label
 
     def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
     def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1`
+        :math:`= 1`
         """
         return 1.
 
@@ -383,25 +383,25 @@ class FalseOmissionRate(LinearFractionalStatistic):
 
     def num_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`Y`
+        :math:`= Y`
         """
         return label
 
     def num_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1 - Y`
+        :math:`= 1 - Y`
         """
         return -label
 
     def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1`
+        :math:`= 1`
         """
         return 1.
 
     def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`-1`
+        :math:`= -1`
         """
         return -1.
 
@@ -421,25 +421,25 @@ class Accuracy(LinearFractionalStatistic):
 
     def num_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1 - Y`
+        :math:`= 1 - Y`
         """
         return 1 - label
 
     def num_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`2Y - 1`
+        :math:`= 2Y - 1`
         """
         return 2 * label - 1
 
     def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1`
+        :math:`= 1`
         """
         return 1.
 
     def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
@@ -457,27 +457,71 @@ class FalseNegativeFalsePositiveFraction(LinearFractionalStatistic):
 
     def num_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`Y`
+        :math:`= Y`
         """
         return label
 
     def num_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`-Y`
+        :math:`= -Y`
         """
         return -label
 
     def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`0`
+        :math:`= 0`
         """
         return 0.
 
     def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
         """
-        :math:`1 - Y`
+        :math:`= 1 - Y`
         """
         return 1 - label
+
+
+class FScore(LinearFractionalStatistic):
+    """
+    FScore is a LinearFractionalStatistic that computes the :math:`F_β`-score, the weighted mean of precision and
+    recall. The :math:`F_1`-score is the harmonic mean of precision and recall.
+
+    The statistic cannot be formulated as a single probability.
+
+    The functions of its canonical form require that the tensor of target labels is provided with the same shape as the
+    predictions.
+    """
+
+    def __init__(self, beta: float = 1.):
+        """
+        Args:
+            beta (float): The weight of recall in the harmonic mean. Default is 1.
+        """
+        super().__init__()
+        self.beta = beta
+
+    def num_intercept(self, label: torch.Tensor) -> torch.Tensor:
+        """
+        :math:`= 0`
+        """
+        return 0
+
+    def num_slope(self, label: torch.Tensor) -> torch.Tensor:
+        """
+        :math:`= 1 + β^2`
+        """
+        return (1 + self.beta ** 2) * label
+
+    def denom_intercept(self, label: torch.Tensor) -> torch.Tensor:
+        """
+        :math:`= β^2Y`
+        """
+        return (self.beta ** 2) * label
+
+    def denom_slope(self, label: torch.Tensor) -> torch.Tensor:
+        """
+        :math:`= 1`
+        """
+        return 1.
 
 
 class StackedLinearFractionalStatistic(LinearFractionalStatistic):
