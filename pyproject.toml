@@ -8,7 +8,7 @@ license = {file = "LICENSE"}
 keywords = ["fairness", "machine-learning", "ai", "artificial-intelligence", "pytorch", "deep-learning", "python",
     "bias", "fairness-ai", "fairness-ml"]
 authors = [
-    {name = "Maarten Buyl", email = "maarten.buyl@ugent.be"}
+    {name = "Maarten Buyl", email = "maarten.buyl@ugent.be"},
     {name = "MaryBeth Defrance", email = "marybeth.defrance@ugent.be"}
 ]
 dependencies = [
