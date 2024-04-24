@@ -263,7 +263,7 @@ class ProjectionLoss(FairnessLoss):
         batch_size = pred.shape[0]
         if batch_size < self._batch_size:
             gap = self._batch_size - batch_size
-            pred = torch.cat([pred, torch.zeros(gap)])
+            pred = torch.cat([pred, torch.zeros(gap, 1)])
             slope = torch.cat([slope, torch.zeros((gap, slope.shape[1]))])
         elif batch_size > self._batch_size:
             raise ValueError(f"For {self.__class__.__name__} with reuse_definition=True, the batch size must never "

@@ -37,9 +37,17 @@ def test_loss_positive_rate(loss_cls, easy_data, net):
     nb_tries = 5
 
     # Calculate loss multiple times as some losses are stateful
-    for _ in range(nb_tries):
-        logit = net(feat)
-        loss = fairret(logit, sens)
+    for attempt in range(nb_tries):
+        if attempt % 2 == 1:
+            # Vary the amount of data to check if the loss can handle it
+            batch_feat = feat[:2]
+            batch_sens = sens[:2]
+        else:
+            batch_feat = feat
+            batch_sens = sens
+
+        logit = net(batch_feat)
+        loss = fairret(logit, batch_sens)
         assert loss.item() >= 0  # fairret should be nonnegative
         loss.backward()
         for p in net.parameters():
@@ -64,9 +72,18 @@ def test_loss_accuracy(loss_cls, easy_data, net):
     nb_tries = 5
 
     # Calculate loss multiple times as some losses are stateful
-    for _ in range(nb_tries):
-        logit = net(feat)
-        loss = fairret(logit, sens, label)
+    for attempt in range(nb_tries):
+        if attempt % 2 == 1:
+            # Vary the amount of data to check if the loss can handle it
+            batch_feat = feat[:2]
+            batch_sens = sens[:2]
+            batch_label = label[:2]
+        else:
+            batch_feat = feat
+            batch_sens = sens
+            batch_label = label
+        logit = net(batch_feat)
+        loss = fairret(logit, batch_sens, batch_label)
         assert loss.item() >= 0  # fairret should be nonnegative
         loss.backward()
         for p in net.parameters():
