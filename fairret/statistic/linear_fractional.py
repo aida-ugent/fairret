@@ -1,6 +1,9 @@
 import abc
 from typing import Any, Tuple, Optional
 import torch
+import inspect
+import pprint
+import re
 
 from fairret.utils import safe_div
 from .base import Statistic
@@ -89,6 +92,59 @@ class LinearFractionalStatistic(Statistic):
         """
         raise NotImplementedError
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # Check whether all abstract methods share the same signature
+        abstract_methods = ('num_intercept', 'num_slope', 'denom_intercept', 'denom_slope')
+        signatures = {}
+        for method in abstract_methods:
+            if getattr(cls, method) == getattr(LinearFractionalStatistic, method):
+                # If any method is not overwritten, the signature check is skipped and instead the abc.ABCMeta TypeError
+                # will be raised when the method is called.
+                return
+            signatures[method] = inspect.signature(getattr(cls, method))
+
+        expected_signature = next(iter(signatures.values()))  # Just compare signatures all to the first signature.
+        if any(signature != expected_signature for signature in signatures.values()):
+            signatures = {method: [parameter for parameter in signature.parameters.values()]
+                          for method, signature in signatures.items()}
+            raise TypeError(f"All {abstract_methods} methods should share the same signature.\n"
+                            f"The signatures are:\n{pprint.pformat(signatures)}")
+        cls.expected_signature = expected_signature
+
+    def __check_stat_args(self, *stat_args: Any, **stat_kwargs: Any) -> None:
+        """
+        Check whether the arguments and keyword arguments passed to the statistic are valid. This is done by checking
+        whether all arguments and keyword arguments together match the signature of  `num_intercept`, `num_slope`,
+        `denom_intercept`, and `denom_slope` methods.
+
+        Args:
+            *stat_args: Any arguments.
+            **stat_kwargs: Any keyword arguments.
+        """
+        try:
+            self.expected_signature.bind(self, *stat_args, **stat_kwargs)
+        except TypeError:
+            received_str = ', '.join(
+                [type(arg).__name__ for arg in stat_args] + [f"{key}={value}" for key, value in stat_kwargs.items()]
+            )
+            received_str = f"({received_str})"
+            parameters_str = re.sub(r'( ->.*)', '', str(self.expected_signature))
+            parameters_str = parameters_str.replace('(self, ', '(', 1)
+            if received_str == '()':
+                raise TypeError(f"No arguments were passed along to the {self.__class__.__name__} statistic.\n"
+                                f"The expected parameters are \n\t{parameters_str}\n"
+                                f"Please pass these along as stat_args and/or stat_kwargs") from None
+            elif parameters_str == '' or parameters_str == '(self)':
+                raise TypeError(f"{received_str} was passed along as stat_args and/or stat_kwargs to the "
+                                f"{self.__class__.__name__} statistic, but it does not expect any arguments.") from None
+            else:
+                raise TypeError(f"Invalid stat_args and/or stat_kwargs were passed along to the "
+                                f"{self.__class__.__name__} statistic.\nThe expected parameters are\n"
+                                f"\t{parameters_str}\n"
+                                f"but received {received_str}") from None
+
     def num(self, pred: torch.Tensor, sens: Optional[torch.Tensor], *stat_args: Any, **stat_kwargs: Any
             ) -> torch.Tensor:
         """
@@ -125,7 +181,6 @@ class LinearFractionalStatistic(Statistic):
         Returns:
             torch.Tensor: Shape :math:`(S)`.
         """
-
         intercept = self.denom_intercept(*stat_args, **stat_kwargs)
         slope = self.denom_slope(*stat_args, **stat_kwargs)
         return self.__compute_num_or_denom(pred, sens, intercept, slope)
@@ -159,6 +214,7 @@ class LinearFractionalStatistic(Statistic):
 
     def forward(self, pred: torch.Tensor, sens: Optional[torch.Tensor], *stat_args: Any, **stat_kwargs: Any
                 ) -> torch.Tensor:
+        self.__check_stat_args(*stat_args, **stat_kwargs)
         num = self.num(pred, sens, *stat_args, **stat_kwargs)
         denom = self.denom(pred, sens, *stat_args, **stat_kwargs)
         return safe_div(num, denom)
@@ -200,13 +256,18 @@ class LinearFractionalStatistic(Statistic):
             Tuple[torch.Tensor, torch.Tensor]: The intercept and slope of the linear constraint defined as
             :math:`intercept + slope * pred = 0`.
         """
+        self.__check_stat_args(*stat_args, **stat_kwargs)
         num_intercept = self.num_intercept(*stat_args, **stat_kwargs)
         denom_intercept = self.denom_intercept(*stat_args, **stat_kwargs)
         if isinstance(denom_intercept, float) or len(denom_intercept.shape) == 0:
+            # If the intercept does not have at least two dimensions, assume that it does not have a batch dimension.
             intercept = num_intercept - denom_intercept * fix_value
         else:
             intercept = num_intercept - torch.einsum('n...y,...y->n...y', denom_intercept, fix_value)
-        intercept = torch.einsum('n...y,ns->n...s', intercept, sens).flatten(start_dim=1)
+        if isinstance(intercept, float) or len(intercept.shape) < 2:
+            intercept = intercept * sens
+        else:
+            intercept = torch.einsum('n...y,ns->n...s', intercept, sens).flatten(start_dim=1)
 
         num_slope = self.num_slope(*stat_args, **stat_kwargs)
         denom_slope = self.denom_slope(*stat_args, **stat_kwargs)
@@ -214,7 +275,11 @@ class LinearFractionalStatistic(Statistic):
             slope = num_slope - denom_slope * fix_value
         else:
             slope = num_slope - torch.einsum('n...y,...y->...', denom_slope, fix_value)
-        slope = torch.einsum('n...y,ns->n...s', slope, sens).flatten(start_dim=1)
+        if isinstance(slope, float) or len(slope.shape) < 2:
+            # If the slope does not have at least two dimensions, assume that it does not have a batch dimension.
+            slope = slope * sens
+        else:
+            slope = torch.einsum('n...y,ns->n...s', slope, sens).flatten(start_dim=1)
         return intercept, slope
 
 

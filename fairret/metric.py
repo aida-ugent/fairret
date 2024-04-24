@@ -103,8 +103,8 @@ class LinearFractionalParity(torchmetrics.Metric):
             pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
                 classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
-            *stat_args: Any further arguments used to compute the statistic.
-            **stat_kwargs: Any keyword arguments used to compute the statistic.
+            *stat_args: All arguments used by the statistic that this metric computes.
+            **stat_kwargs: All keyword arguments used by the statistic that this metric computes.
         """
 
         if sens.shape[1] != self.stat_shape[-1]:

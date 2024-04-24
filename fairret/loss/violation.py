@@ -49,13 +49,13 @@ class ViolationLoss(FairnessLoss):
             pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
                 classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
-            *stat_args: Any further arguments used to compute the statistic.
+            *stat_args: All arguments used by the statistic that this loss minimizes.
             pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are
                 will simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses benefit from improved
                 numerical stability if they handle the conversion themselves.
             target_statistic (Optional[torch.Tensor]): The target statistic as a scalar tensor. If not provided for a
                 LinearFractionalStatistic, the overall statistic will be used by default.
-            **stat_kwargs: Any keyword arguments used to compute the statistic.
+            **stat_kwargs: All keyword arguments used by the statistic that this loss computes.
 
         Returns:
             torch.Tensor: The calculated loss as a scalar tensor.

@@ -157,11 +157,11 @@ class ProjectionLoss(FairnessLoss):
             pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
                 classification or regression.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
-            *stat_args: Any further arguments used to compute the statistic.
+            *stat_args: All arguments used by the statistic that this loss minimizes.
             pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are
                 will simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses benefit from improved
                 numerical stability if they handle the conversion themselves.
-            **stat_kwargs: Any keyword arguments used to compute the statistic.
+            **stat_kwargs: All keyword arguments used by the statistic that this loss computes.
 
         Returns:
             torch.Tensor: The calculated loss as a scalar tensor.
@@ -234,8 +234,8 @@ class ProjectionLoss(FairnessLoss):
                 assume binary classification, the first column is the probability of the negative class and the second
                 column is the probability of the positive class.
             sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
-            *stat_args: Any further arguments used to compute the statistic.
-            **stat_kwargs: Any keyword arguments used to compute the statistic.
+            *stat_args: All arguments used by the statistic that this loss minimizes.
+            **stat_kwargs: All keyword arguments used by the statistic that this loss computes.
 
         Returns:
             torch.Tensor: The projection of the predictions onto the fair set in the shape (N, 2).
