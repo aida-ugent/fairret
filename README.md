@@ -22,7 +22,9 @@ The fairret library can be installed via PyPi:
 pip install fairret
 ```
 
-A minimal list of dependencies is provided in [pyproject.toml](https://github.com/aida-ugent/fairret/blob/main/pyproject.toml). If the library is installed locally, the required packages can be installed via `pip install .`
+A minimal list of dependencies is provided in [pyproject.toml](https://github.com/aida-ugent/fairret/blob/main/pyproject.toml). 
+
+If the library is installed locally, the required packages can be installed via `pip install .`
 
 ## Quickstart
 
