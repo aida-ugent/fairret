@@ -15,8 +15,6 @@ The goal of fairret is to serve as an open-source Python library for measuring a
 The central to the library is the paradigm of the _fairness regularization term_ (fairrets) that quantify unfairness as differentiable PyTorch loss functions. 
 These can then be optimized together with e.g. the binary cross-entropy error such that the classifier improves both its accuracy and fairness.
 
-**The library is still in very early development.** Documentation, installation instructions, and more examples will be added in the near future.
-
 ## Installation
 The fairret library can be installed via PyPi:
 
@@ -24,7 +22,6 @@ The fairret library can be installed via PyPi:
 pip install fairret
 ```
 
-### Dependencies
 A minimal list of dependencies is provided in [pyproject.toml](https://github.com/aida-ugent/fairret/blob/main/pyproject.toml). If the library is installed locally, the required packages can be installed via `pip install .`
 
 ## Quickstart
