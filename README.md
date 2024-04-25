@@ -15,7 +15,7 @@ The library is designed to be
 
 Central to the library is the paradigm of the _fairness regularization term_ (fairrets) that quantify unfairness as differentiable PyTorch loss functions. 
 
-These can then be minimized jointly with other losses, like the binary cross-entropy error, by just adding them together!
+These can be minimized jointly with other losses, like the binary cross-entropy error, by just adding them together!
 
 ## Quickstart
 
@@ -44,7 +44,7 @@ def train(model, optimizer, train_loader):
             optimizer.step()
 ```
 
-No special data structure is required for the sensitive features. If the training batch contains N elements, then `sens` should be a tensor of floats with shape (N, d_s), with d_s the number of sensitive features. **Like any categorical feature, it is expected that categorical sensitive features are one-hot encoded.**
+No special data structure is required for the sensitive features. If the training batch contains $N$ elements, then `sens` should be a tensor of floats with shape $(N, d_s)$, with $d_s$ the number of sensitive features. **Like any categorical feature, it is expected that categorical sensitive features are one-hot encoded.**
 
 A notebook with a full example pipeline is provided here: [simple_pipeline.ipynb](/examples/simple_pipeline.ipynb).
 
