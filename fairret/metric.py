@@ -49,8 +49,8 @@ class LinearFractionalParity(torchmetrics.Metric):
 
     The metric maintains two pairs of running sums: one for the statistic for every sensitive feature, and one for the
     overall statistic. Each pair of running sums consists of the numerator and the denominator for those statistics.
-    Observations are added to these sums by calling the :py:meth:`~fairret.metric.update` method. The final fairness gap
-    is computed by calling the :py:meth:`~fairret.metric.compute` method.
+    Observations are added to these sums by calling the :py:meth:`~fairret.metric.LinearFractionalParity.update` method.
+    The final fairness gap is computed by calling the :py:meth:`~fairret.metric.LinearFractionalParity.compute` method.
 
     The class is implemented as a subclass of :py:class:`torchmetrics.Metric`, so the :py:mod:`torchmetrics` package is
     required.
