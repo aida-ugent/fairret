@@ -27,13 +27,13 @@ class ProjectionLoss(FairnessLoss):
 
     The projections are computed using cvxpy. Hence, any subclass is expected to implement the statistical distance
     between distributions in both cvxpy and PyTorch by implementing the
-    :py:meth:`~projection.ProjectionLoss.cvxpy_distance` method and the
-    :py:meth:`~projection.ProjectionLoss.torch_distance` method respectively.
+    :py:meth:`~fairret.loss.projection.ProjectionLoss.cvxpy_distance` method and the
+    :py:meth:`~fairret.loss.projection.ProjectionLoss.torch_distance` method respectively.
 
-    Optionally, the :py:meth:`~projection.ProjectionLoss.torch_distance_with_logits` method can be overwritten to
-    provide a more numerically stable handling of predictions that are provided as logits. If left unimplemented,
-    :py:meth:`~projection.ProjectionLoss.torch_distance` will be called instead, after applying the sigmoid function to
-    the predictions.
+    Optionally, the :py:meth:`~fairret.loss.projection.ProjectionLoss.torch_distance_with_logits` method can be
+    overwritten to provide a more numerically stable handling of predictions that are provided as logits. If left
+    unimplemented, :py:meth:`~fairret.loss.projection.ProjectionLoss.torch_distance` will be called instead,
+    after applying the sigmoid function to the predictions.
 
     Note:
         We use 'statistical distance' in a broad sense here, and do not require that the distance is a metric. See
@@ -131,8 +131,8 @@ class ProjectionLoss(FairnessLoss):
 
     def torch_distance_with_logits(self, pred, proj):
         """
-        A more numerically stable alternative method to :py:meth:`~projection.ProjectionLoss.torch_distance`, where `pred`
-        is assumed to be logits.
+        A more numerically stable alternative method to
+        :py:meth:`~fairret.loss.projection.ProjectionLoss.torch_distance`, where `pred` is assumed to be logits.
 
         Args:
             pred (torch.Tensor): The predicted distribution as logits, in shape (N,1). As we assume binary

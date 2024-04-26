@@ -595,14 +595,15 @@ class FScore(LinearFractionalStatistic):
 class StackedLinearFractionalStatistic(LinearFractionalStatistic):
     """
     A vector-valued statistic that combines the outputs of K
-    :py:class:`fairret.statistic.linear_fractional.LinearFractionalStatistic` 's into a single statistic with output
+    :py:class:`~fairret.statistic.linear_fractional.LinearFractionalStatistic` 's into a single statistic with output
     (K, S) by stacking all outputs in the second-to-last dimension (`dim=-2`).
     """
 
     def __init__(self, *statistics: LinearFractionalStatistic):
         """
         Args:
-            *statistics: The :py:class:`fairret.statistic.linear_fractional.LinearFractionalStatistic` 's to be stacked.
+            *statistics: The :py:class:`~fairret.statistic.linear_fractional.LinearFractionalStatistic` 's to be
+            stacked.
         """
 
         super().__init__()
