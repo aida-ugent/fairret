@@ -16,11 +16,11 @@ class LinearFractionalStatistic(Statistic):
 
     A LinearFractionalStatistic is constructed in a canonical form by defining the intercept and slope of the
     numerator and denominator linear functions, i.e. the functions
-    :py:func:`~linear_fractional.LinearFractionalStatistic.num_intercept`,
-    :py:func:`~linear_fractional.LinearFractionalStatistic.num_slope`,
-    :py:func:`~linear_fractional.LinearFractionalStatistic.denom_intercept`,
-    and :py:func:`~linear_fractional.LinearFractionalStatistic.denom_slope`. Each subclass must implement these
-    functions (using any signature).
+    :py:meth:`~fairret.statistic.linear_fractional.LinearFractionalStatistic.num_intercept`,
+    :py:meth:`~fairret.statistic.linear_fractional.LinearFractionalStatistic.num_slope`,
+    :py:meth:`~fairret.statistic.linear_fractional.LinearFractionalStatistic.denom_intercept`,
+    and :py:meth:`~fairret.statistic.linear_fractional.LinearFractionalStatistic.denom_slope`. Each subclass must
+    implement these functions (using any signature).
 
     The statistic is then computed as :math:`\\frac{num\\_intercept + num\\_slope * pred}{denom\\_intercept +
     denom\\_slope * pred}`.
@@ -116,8 +116,11 @@ class LinearFractionalStatistic(Statistic):
     def __check_stat_args(self, *stat_args: Any, **stat_kwargs: Any) -> None:
         """
         Check whether the arguments and keyword arguments passed to the statistic are valid. This is done by checking
-        whether all arguments and keyword arguments together match the signature of  `num_intercept`, `num_slope`,
-        `denom_intercept`, and `denom_slope` methods.
+        whether all arguments and keyword arguments together match the signature of
+        :py:meth:`~fairret.statistic.linear_fractional.LinearFractionalStatistic.num_intercept`,
+        :py:meth:`~fairret.statistic.linear_fractional.LinearFractionalStatistic.num_slope`,
+        :py:meth:`~fairret.statistic.linear_fractional.LinearFractionalStatistic.denom_intercept`,
+        and :py:meth:`~fairret.statistic.linear_fractional.LinearFractionalStatistic.denom_slope` methods.
 
         Args:
             *stat_args: Any arguments.
@@ -239,7 +242,7 @@ class LinearFractionalStatistic(Statistic):
     def fixed_constraint(self, fix_value: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any
                          ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Reformulate the fairness definition for this LinearFractionalStatistic as a linear constraint.
+        Reformulate the fairness definition for this linear-fractional statistic as a linear constraint.
 
         This is done by fixing the intended values of the statistic for every sensitive feature to a given value
         `fix_value`. The linear expressions that make up the numerator and denominator are then combined into a single
@@ -285,7 +288,7 @@ class LinearFractionalStatistic(Statistic):
 
 class PositiveRate(LinearFractionalStatistic):
     """
-    PositiveRate is a LinearFractionalStatistic that computes the average rate at which positive predictions are made in
+    PositiveRate computes the average rate at which positive predictions are made in
     binary classification.
 
     Formulated as a probability, it computes :math:`P(\\hat{Y} = 1 | S)` for categorical sensitive features :math:`S`,
@@ -321,7 +324,7 @@ class PositiveRate(LinearFractionalStatistic):
 
 class TruePositiveRate(LinearFractionalStatistic):
     """
-    TruePositiveRate is a LinearFractionalStatistic that computes the average rate at which positives are actually
+    TruePositiveRate computes the average rate at which positives are actually
     predicted as positives, also known as the recall.
 
     Formulated as a probability, it computes :math:`P(\\hat{Y} = 1 | Y = 1, S)` for categorical sensitive features
@@ -359,7 +362,7 @@ class TruePositiveRate(LinearFractionalStatistic):
 
 class FalsePositiveRate(LinearFractionalStatistic):
     """
-    FalsePositiveRate is a LinearFractionalStatistic that computes the average rate at which negatives are actually
+    FalsePositiveRate computes the average rate at which negatives are actually
     predicted as positives.
 
     Formulated as a probability, it computes :math:`P(\\hat{Y} = 1 | Y = 0, S)` for categorical sensitive features
@@ -397,7 +400,7 @@ class FalsePositiveRate(LinearFractionalStatistic):
 
 class PositivePredictiveValue(LinearFractionalStatistic):
     """
-    PositivePredictiveValue is a LinearFractionalStatistic that computes the average rate at which the predicted
+    PositivePredictiveValue computes the average rate at which the predicted
     positives were actually labeled positive, also known as the precision.
 
     Formulated as a probability, it computes :math:`P(Y = 1 | \\hat{Y} = 1, S)` for categorical sensitive features
@@ -435,7 +438,7 @@ class PositivePredictiveValue(LinearFractionalStatistic):
 
 class FalseOmissionRate(LinearFractionalStatistic):
     """
-    FalseOmissionRate is a LinearFractionalStatistic that computes the average rate at which the predicted
+    FalseOmissionRate computes the average rate at which the predicted
     negatives were actually labeled positive, also known as the precision.
 
     Formulated as a probability, it computes :math:`P(Y = 1 | \\hat{Y} = 0, S)` for categorical sensitive features
@@ -473,7 +476,7 @@ class FalseOmissionRate(LinearFractionalStatistic):
 
 class Accuracy(LinearFractionalStatistic):
     """
-    Accuracy is a LinearFractionalStatistic that computes the average rate at which predictions match the actual target
+    Accuracy computes the average rate at which predictions match the actual target
     labels.
 
     Formulated as a probability, it computes :math:`P(\\hat{Y} = Y | S)` for categorical sensitive features :math:`S`,
@@ -511,7 +514,7 @@ class Accuracy(LinearFractionalStatistic):
 
 class FalseNegativeFalsePositiveFraction(LinearFractionalStatistic):
     """
-    FalseNegativeFalsePositiveFraction is a LinearFractionalStatistic that computes the ratio between false negatives
+    FalseNegativeFalsePositiveFraction computes the ratio between false negatives
     and false positives.
 
     The statistic cannot be formulated as a single probability.
@@ -547,8 +550,8 @@ class FalseNegativeFalsePositiveFraction(LinearFractionalStatistic):
 
 class FScore(LinearFractionalStatistic):
     """
-    FScore is a LinearFractionalStatistic that computes the :math:`F_β`-score, the weighted mean of precision and
-    recall. The :math:`F_1`-score is the harmonic mean of precision and recall.
+    FScore computes the :math:`F_β`-score, the weighted mean of precision and recall. The :math:`F_1`-score is the
+    harmonic mean of precision and recall.
 
     The statistic cannot be formulated as a single probability.
 
@@ -591,14 +594,15 @@ class FScore(LinearFractionalStatistic):
 
 class StackedLinearFractionalStatistic(LinearFractionalStatistic):
     """
-    A vector-valued LinearFractionalStatistic that combines the outputs of K LinearFractionalStatistics into a single
-    statistic with output (K, S) by stacking all outputs in the second-to-last dimension (`dim=-2`).
+    A vector-valued statistic that combines the outputs of K
+    :py:class:`fairret.statistic.linear_fractional.LinearFractionalStatistic`s into a single statistic with output
+    (K, S) by stacking all outputs in the second-to-last dimension (`dim=-2`).
     """
 
     def __init__(self, *statistics: LinearFractionalStatistic):
         """
         Args:
-            *statistics: The LinearFractionalStatistics to be stacked.
+            *statistics: The :py:class:`fairret.statistic.linear_fractional.LinearFractionalStatistic`s to be stacked.
         """
 
         super().__init__()
