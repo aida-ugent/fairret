@@ -45,18 +45,22 @@ def gap_relative_abs_max(vals: torch.Tensor, target_val: float) -> float:
 class LinearFractionalParity(torchmetrics.Metric):
     """
     Metric that assesses the fairness of a model's predictions by comparing the gaps between the provided
-    LinearFractionalStatistic for every sensitive feature.
+    :py:class:`~fairret.statistic.LinearFractionalStatistic` for every sensitive feature.
 
     The metric maintains two pairs of running sums: one for the statistic for every sensitive feature, and one for the
     overall statistic. Each pair of running sums consists of the numerator and the denominator for those statistics.
-    Observations are added to these sums by calling the `update` method. The final fairness gap is computed by calling
-    the `compute` method, which also resets the internal state of the metric.
+    Observations are added to these sums by calling the :py:func:`~fairret.metric.update` method. The final fairness gap
+    is computed by calling the :py:func:`~fairret.metric.compute` method.
 
-    The class is implemented as a subclass of torchmetrics.Metric, so the `torchmetrics` package is required.
+    The class is implemented as a subclass of :py:class:`torchmetrics.Metric`, so the :py:mod:`torchmetrics` package is
+    required.
 
     Warning:
-        It is advised not to mix LinearFractionalParity metrics with different statistics in a single
-        torchmetrics.MetricCollection with `compute_groups=True`, as this can lead to hard-to-debug errors.
+        A separate :py:func:`~torchmetrics.Metric.reset() call is required to reset the internal state of the metric
+        between epochs.
+    Warning:
+        It is advised not to mix metrics of this class with different statistics in a single
+        :py:class:`torchmetrics.MetricCollection` with `compute_groups=True`, as this can lead to hard-to-debug errors.
     """
 
     is_differentiable = True
@@ -120,7 +124,7 @@ class LinearFractionalParity(torchmetrics.Metric):
         final gaps between the groupwise and overall statistics, according to the `gap_fn`.
 
         Warning:
-            This does NOT reset the internal state of the metric. A separate .reset() call is required to do so.
+            This does NOT reset the internal state of the metric. A separate `.reset()` call is required to do so.
 
         Returns:
             float: The final fairness gap.

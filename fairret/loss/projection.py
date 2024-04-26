@@ -27,12 +27,12 @@ class ProjectionLoss(FairnessLoss):
 
     The projections are computed using cvxpy. Hence, any subclass is expected to implement the statistical distance
     between distributions in both cvxpy and PyTorch by implementing the
-    :func:`~projection.ProjectionLoss.cvxpy_distance` method and the
-    :func:`~projection.ProjectionLoss.torch_distance` method respectively.
+    :py:func:`~projection.ProjectionLoss.cvxpy_distance` method and the
+    :py:func:`~projection.ProjectionLoss.torch_distance` method respectively.
 
-    Optionally, the :func:`~projection.ProjectionLoss.torch_distance_with_logits` method can be overwritten to
+    Optionally, the :py:func:`~projection.ProjectionLoss.torch_distance_with_logits` method can be overwritten to
     provide a more numerically stable handling of predictions that are provided as logits. If left unimplemented,
-    :func:`~projection.ProjectionLoss.torch_distance` will be called instead, after applying the sigmoid function to
+    :py:func:`~projection.ProjectionLoss.torch_distance` will be called instead, after applying the sigmoid function to
     the predictions.
 
     Note:
@@ -131,7 +131,7 @@ class ProjectionLoss(FairnessLoss):
 
     def torch_distance_with_logits(self, pred, proj):
         """
-        A more numerically stable alternative method to :func:`~projection.ProjectionLoss.torch_distance`, where `pred`
+        A more numerically stable alternative method to :py:func:`~projection.ProjectionLoss.torch_distance`, where `pred`
         is assumed to be logits.
 
         Args:

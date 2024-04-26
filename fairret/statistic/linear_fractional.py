@@ -16,10 +16,10 @@ class LinearFractionalStatistic(Statistic):
 
     A LinearFractionalStatistic is constructed in a canonical form by defining the intercept and slope of the
     numerator and denominator linear functions, i.e. the functions
-    :func:`~linear_fractional.LinearFractionalStatistic.num_intercept`,
-    :func:`~linear_fractional.LinearFractionalStatistic.num_slope`,
-    :func:`~linear_fractional.LinearFractionalStatistic.denom_intercept`,
-    and :func:`~linear_fractional.LinearFractionalStatistic.denom_slope`. Each subclass must implement these
+    :py:func:`~linear_fractional.LinearFractionalStatistic.num_intercept`,
+    :py:func:`~linear_fractional.LinearFractionalStatistic.num_slope`,
+    :py:func:`~linear_fractional.LinearFractionalStatistic.denom_intercept`,
+    and :py:func:`~linear_fractional.LinearFractionalStatistic.denom_slope`. Each subclass must implement these
     functions (using any signature).
 
     The statistic is then computed as :math:`\\frac{num\\_intercept + num\\_slope * pred}{denom\\_intercept +

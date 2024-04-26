@@ -43,7 +43,7 @@ class ViolationLoss(FairnessLoss):
                 target_statistic: Optional[torch.Tensor] = None, **stat_kwargs: Any) -> torch.Tensor:
         """
         Calculate the violation vector in relation to the `target_statistic` and penalize this violation using the
-        :func:`~violation.ViolationLoss.penalize_violation` method implemented by the subclass.
+        :py:func:`~violation.ViolationLoss.penalize_violation` method implemented by the subclass.
 
         Args:
             pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
