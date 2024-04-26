@@ -59,7 +59,6 @@ class LinearFractionalParity(torchmetrics.Metric):
         torchmetrics.MetricCollection with `compute_groups=True`, as this can lead to hard-to-debug errors.
     """
 
-    # TODO: warn about compute groups.
     is_differentiable = True
     higher_is_better = False
     full_state_update = False
@@ -120,7 +119,8 @@ class LinearFractionalParity(torchmetrics.Metric):
         Divide the running sums of the numerator and denominator of the groupwise and overall statistics and compute the
         final gaps between the groupwise and overall statistics, according to the `gap_fn`.
 
-        The internal state of the metric is reset after calling this method.
+        Warning:
+            This does NOT reset the internal state of the metric. A separate .reset() call is required to do so.
 
         Returns:
             float: The final fairness gap.
