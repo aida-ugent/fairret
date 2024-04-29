@@ -6,7 +6,7 @@
 [![Static Badge](https://img.shields.io/badge/Original%20Paper-00a0ff)](https://openreview.net/pdf?id=NnyD0Rjx2B)
 <img src="./docs/source/_static/fairret.png" height="300" align="right">
 
-The goal of fairret is to serve as an open-source library for measuring and mitigating statistical fairness in PyTorch models. 
+The goal of fairret is to serve as an open-source library for measuring and pursuing statistical fairness in PyTorch models. 
 
 The library is designed to be 
 1. *flexible* in how fairness is defined and pursued.
