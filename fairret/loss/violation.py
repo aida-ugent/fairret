@@ -1,6 +1,7 @@
 import abc
 from typing import Any, Optional
 import torch
+import tensorflow as tf
 
 from .base import FairnessLoss
 from ..statistic import Statistic, LinearFractionalStatistic
@@ -14,16 +15,18 @@ class ViolationLoss(FairnessLoss):
     Each subclass must implement the `penalize_violation` method.
     """
 
-    def __init__(self, statistic: Statistic):
+    def __init__(self, statistic: Statistic, torch=True):
         """
         Args:
             statistic (Statistic): The statistic that should be used to calculate the violation vector. Preferably, a
                 LinearFractionalStatistic is provided, as this allows for a straightforward calculation of the target
                 statistic as the overall statistic.
+            torch (bool): torch or keras model
         """
 
         super().__init__()
         self.statistic = statistic
+        self.torch = torch
 
     @abc.abstractmethod
     def penalize_violation(self, violation) -> torch.Tensor:
@@ -61,8 +64,11 @@ class ViolationLoss(FairnessLoss):
             torch.Tensor: The calculated loss as a scalar tensor.
         """
 
-        if pred_as_logit:
+        if pred_as_logit and self.torch:
             pred = torch.sigmoid(pred)
+
+        if pred_as_logit and not self.torch:
+            pred = tf.math.sigmoid(pred)
 
         if target_statistic is None:
             if isinstance(self.statistic, LinearFractionalStatistic):
@@ -80,7 +86,10 @@ class ViolationLoss(FairnessLoss):
         if any(target_statistic == 0.):
             raise NotImplementedError("Target statistic is zero. Penalization for this edge case is not implemented.")
 
-        violation = torch.abs(stats / target_statistic - 1)
+        if self.torch:
+            violation = torch.abs(stats / target_statistic - 1)
+        if not self.torch:
+            violation = tf.math.abs(stats / target_statistic - 1)
 
         loss = self.penalize_violation(violation)
         return loss
@@ -98,14 +107,16 @@ class NormLoss(ViolationLoss):
                 LinearFractionalStatistic is provided, as this allows for a straightforward calculation of the target
                 statistic as the overall statistic.
             p (int): The order of the norm. Default is 1.
+            torch (bool): torch or keras model
         """
 
-        super().__init__(statistic)
+        super().__init__(statistic, statistic.torch)
         self.p = p
 
     def penalize_violation(self, violation: torch.Tensor) -> torch.Tensor:
-        return torch.linalg.vector_norm(violation, ord=self.p, dim=-1).sum()
-
+        if self.torch:
+            return torch.linalg.vector_norm(violation, ord=self.p, dim=-1).sum()
+        return tf.reduce_sum(tf.norm(violation, ord=self.p, axis=-1))
 
 class LSELoss(ViolationLoss):
 

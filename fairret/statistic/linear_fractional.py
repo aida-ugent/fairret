@@ -1,6 +1,7 @@
 import abc
 from typing import Any, Tuple, Optional
 import torch
+import tensorflow as tf
 import inspect
 import pprint
 import re
@@ -25,6 +26,9 @@ class LinearFractionalStatistic(Statistic):
     The statistic is then computed as :math:`\\frac{num\\_intercept + num\\_slope * pred}{denom\\_intercept +
     denom\\_slope * pred}`.
     """
+
+    def __init__(self, torch: bool = True):
+        self.torch = torch
 
     # The following methods violate the Liskov Substitution Principle (LSP) because they are implemented more generally
     # in this base class than is expected in the subclasses. However, it is kept for practical reasons. See 
@@ -166,7 +170,7 @@ class LinearFractionalStatistic(Statistic):
         """
         intercept = self.num_intercept(*stat_args, **stat_kwargs)
         slope = self.num_slope(*stat_args, **stat_kwargs)
-        return self.__compute_num_or_denom(pred, sens, intercept, slope)
+        return self.__compute_num_or_denom(pred, sens, intercept, slope, self.torch)
 
     def denom(self, pred: torch.Tensor, sens: Optional[torch.Tensor], *stat_args: Any, **stat_kwargs: Any
               ) -> torch.Tensor:
@@ -186,11 +190,11 @@ class LinearFractionalStatistic(Statistic):
         """
         intercept = self.denom_intercept(*stat_args, **stat_kwargs)
         slope = self.denom_slope(*stat_args, **stat_kwargs)
-        return self.__compute_num_or_denom(pred, sens, intercept, slope)
+        return self.__compute_num_or_denom(pred, sens, intercept, slope, self.torch)
 
     @staticmethod
     def __compute_num_or_denom(pred: torch.Tensor, sens: Optional[torch.Tensor], intercept: torch.Tensor,
-                               slope: torch.Tensor) -> torch.Tensor:
+                               slope: torch.Tensor, torch: bool = False) -> torch.Tensor:
         """
         Shorthand function to deduplicate the num and denom functions, given the intercept and slope functions.
 
@@ -201,26 +205,34 @@ class LinearFractionalStatistic(Statistic):
                 If None, the statistic is computed over all samples, ignoring the sensitive feature.
             intercept (torch.Tensor): The intercept of the linear function.
             slope (torch.Tensor): The slope of the linear function.
+            torch (bool): torch or keras model
         """
         if isinstance(slope, float) or len(slope.shape) == 0:
             linear_expression = intercept + slope * pred
         elif len(slope.shape) >= 2:
-            linear_expression = intercept + torch.einsum('n...y,ny->n...y', slope, pred)
+            if torch:
+                linear_expression = intercept + torch.einsum('n...y,ny->n...y', slope, pred)
+            if not torch:
+                linear_expression = intercept + tf.einsum('n...y,ny->n...y', slope, pred)
         else:
             raise ValueError("The slope should be a scalar or a tensor with at least as many dimensions as the 'pred' "
                              "tensor.")
 
-        if sens is None:
+        if sens is None and torch:
             return linear_expression.sum(dim=0)
-        else:
+        if sens is None and not torch:
+            return tf.reduce_sum(linear_expression, axis=0)
+        if torch:
             return torch.einsum('n...y,ns->n...s', linear_expression, sens).sum(dim=0)
+        if not torch:
+            return tf.reduce_sum(tf.einsum('n...y,ns->n...s', linear_expression, sens), axis=0)
 
     def forward(self, pred: torch.Tensor, sens: Optional[torch.Tensor], *stat_args: Any, **stat_kwargs: Any
                 ) -> torch.Tensor:
         self.__check_stat_args(*stat_args, **stat_kwargs)
         num = self.num(pred, sens, *stat_args, **stat_kwargs)
         denom = self.denom(pred, sens, *stat_args, **stat_kwargs)
-        return safe_div(num, denom)
+        return safe_div(num, denom, torch=self.torch)
 
     def overall_statistic(self, pred: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
         """
