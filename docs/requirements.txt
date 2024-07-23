@@ -1,3 +1,2 @@
 torchmetrics
 nbsphinx
-nbsphinx_link

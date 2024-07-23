@@ -22,7 +22,12 @@ jobs:
       pages: write
       id-token: write
     steps:
+    - name: Copy notebooks to docs
+      run: cp examples/*.ipynb docs/source/examples/
+    - id: install_pandoc
+      run: sudo apt-get install pandoc
     - id: deployment
       uses: sphinx-notes/pages@v3
       with:
         documentation_path: docs/source
+        cache: true
