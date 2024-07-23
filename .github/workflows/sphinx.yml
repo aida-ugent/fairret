@@ -22,6 +22,8 @@ jobs:
       pages: write
       id-token: write
     steps:
+    - name: Checkout
+      uses: actions/checkout@v4
     - name: list workspace
       run: ls -la
     - name: Copy notebooks to docs
@@ -33,3 +35,4 @@ jobs:
       with:
         documentation_path: docs/source
         cache: true
+        checkout: false
