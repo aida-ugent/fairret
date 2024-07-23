@@ -22,6 +22,8 @@ jobs:
       pages: write
       id-token: write
     steps:
+    - name: list workspace
+      run: ls -la
     - name: Copy notebooks to docs
       run: cp examples/*.ipynb docs/source/examples/
     - id: install_pandoc
