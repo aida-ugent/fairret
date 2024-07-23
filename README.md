@@ -46,7 +46,7 @@ def train(model, optimizer, train_loader):
 
 No special data structure is required for the sensitive features. If the training batch contains $N$ elements, then `sens` should be a tensor of floats with shape $(N, d_s)$, with $d_s$ the number of sensitive features. **Like any categorical feature, it is expected that categorical sensitive features are one-hot encoded.**
 
-A notebook with a full example pipeline is provided here: [simple_pipeline.ipynb](/examples/simple_pipeline.ipynb).
+A notebook with a full example pipeline is provided here: [Simple Pipeline.ipynb](/examples/Simple Pipeline.ipynb).
 
 We also host [documentation](https://aida-ugent.github.io/fairret/).
 

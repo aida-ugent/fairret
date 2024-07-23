@@ -1,8 +1,8 @@
-Metric
+:tocdepth: 2
+
+Metrics
 ============================
 
-Base statistic definition
-----------------------------
 .. autoclass:: fairret.metric.LinearFractionalParity
     :members:
     :show-inheritance:

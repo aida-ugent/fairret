@@ -1,20 +1,21 @@
-Fairness loss methods
+:tocdepth: 3
+
+Loss Functions
 =============================
 
-Base loss method definition
------------------------------
 .. automodule:: fairret.loss.base
     :members:
     :show-inheritance:
 
-Violation loss methods 
+
+Violation-based Losses
 -----------------------------
 .. automodule:: fairret.loss.violation
     :members:
     :show-inheritance:
 
 
-Projection loss methods
+Projection-based Losses
 -----------------------------
    
 .. automodule:: fairret.loss.projection

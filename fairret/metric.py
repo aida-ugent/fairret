@@ -17,11 +17,11 @@ def gap_abs_max(vals: torch.Tensor, target_val: float) -> float:
     \\Vert_\\infty` norm).
 
     Args:
-        vals (torch.Tensor): The values to compare.
-        target_val (float): The target value.
+        vals: The values to compare.
+        target_val: The target value.
 
     Returns:
-        float: The maximal gap.
+        The maximal gap.
     """
 
     return torch.amax(torch.abs(vals - target_val), dim=-1)
@@ -33,11 +33,11 @@ def gap_relative_abs_max(vals: torch.Tensor, target_val: float) -> float:
     \\cdot \\Vert_\\infty` norm).
 
     Args:
-        vals (torch.Tensor): The values to compare.
-        target_val (float): The target value.
+        vals: The values to compare.
+        target_val: The target value.
 
     Returns:
-        float: The maximal gap.
+        The maximal gap.
     """
     return torch.amax(torch.abs(vals / target_val - 1), dim=-1)
 
@@ -74,12 +74,12 @@ class LinearFractionalParity(torchmetrics.Metric):
                  **torchmetrics_kwargs: Any):
         """
         Args:
-            statistic (LinearFractionalStatistic): the LinearFractionalStatistic that should be evaluated.
-            stat_shape (Union[int, Tuple[int]]): the shape of the statistic, excluding the batch dimension. For example,
+            statistic: the LinearFractionalStatistic that should be evaluated.
+            stat_shape: the shape of the statistic, excluding the batch dimension. For example,
                 a single statistic computed for every sensitive feature would have a shape of `(S,)` with `S` the number
                 of sensitive features. If the statistic is a stacked statistic, the shape should be `(K, S)` with `K`
                 the number of statistics in the stack.
-            gap_fn (Callable[[torch.Tensor, float], float]): the function that computes the gaps between the statistic
+            gap_fn: the function that computes the gaps between the statistic
                 for every sensitive feature and the overall statistic. The default is the absolute maximum of the
                 relative gaps.
             **torchmetrics_kwargs: Any additional keyword arguments that should be passed to torchmetrics.Metric.
@@ -103,9 +103,9 @@ class LinearFractionalParity(torchmetrics.Metric):
         batch of predictions and sensitive features.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+            pred: Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
                 classification or regression.
-            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            sens: Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: All arguments used by the statistic that this metric computes.
             **stat_kwargs: All keyword arguments used by the statistic that this metric computes.
         """
@@ -127,7 +127,7 @@ class LinearFractionalParity(torchmetrics.Metric):
             This does NOT reset the internal state of the metric. A separate `.reset()` call is required to do so.
 
         Returns:
-            float: The final fairness gap.
+            The final fairness gap.
         """
 
         stats = safe_div(self.num, self.denom)

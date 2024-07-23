@@ -15,30 +15,48 @@ release = '0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-html_theme = "nature"
-
-extensions = ['sphinx.ext.doctest', 'sphinx.ext.autodoc', 'sphinx.ext.autosummary', 'sphinx.ext.napoleon']
+extensions = [
+    'sphinx.ext.doctest',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.napoleon',
+    'nbsphinx',
+    "nbsphinx_link",
+]
 
 templates_path = ['_templates']
 exclude_patterns = []
-
 
 # Napoleon settings
 napoleon_google_docstring = True
 napoleon_include_init_with_doc = True
 
+# maximum_signature_line_length = 20
+
 # Autodoc settings
 autodoc_member_order = 'bysource'
+
+# Automatically extract typehints when specified and place them in
+# descriptions of the relevant function/method.
+autodoc_typehints = "description"
+autodoc_typehints_format = 'fully-qualified'
+autodoc_preserve_defaults = True
+autodoc_typehints_description_target = 'documented'
+
+# Don't show class signature with the class' name.
+autodoc_class_signature = "separated"
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'alabaster'
 html_static_path = ['_static']
+globaltoc_maxdepth = 3
 
 # -- Set system path in order to import code ---------------------------------
 import pathlib
 import sys
+
 sys.path.insert(0, pathlib.Path(__file__).parents[2].resolve().as_posix())
 
 print(pathlib.Path(__file__).parents[2].resolve().as_posix())

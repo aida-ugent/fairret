@@ -40,22 +40,19 @@ class ProjectionLoss(FairnessLoss):
         https://en.wikipedia.org/wiki/Statistical_distance for more information.
     """
 
-    def __init__(self, statistic: LinearFractionalStatistic, force_proj_normalized=True, proj_eps=0.,
+    def __init__(self, statistic: LinearFractionalStatistic, force_proj_normalized: bool = True, proj_eps: float = 0.,
                  **solver_kwargs: Any):
         """
         Args:
-            statistic (LinearFractionalStatistic): The LinearFractionalStatistic that defines the fairness constraint.
+            statistic: The LinearFractionalStatistic that defines the fairness constraint.
                 The projection is computed through convex optimization, so the constraint should be linear. This is
                 achieved by fixing equality in the LinearFractionalStatistic values to the overall statistic.
-            force_proj_normalized (bool): Whether to force the projected distribution to be normalized. This might not
+            force_proj_normalized: Whether to force the projected distribution to be normalized. This might not
                 be the case if the optimization does not converge to a solution that satisfies the normalization
                 constraint. Hence, setting this to True will renormalize the projected distribution to sum to 1.
-            proj_eps (float): Every probability value in the projected distribution is clamped to the interval
-                [proj_eps, 1 - proj_eps]. Default is 0.
-            The minimum value of every probability value in the projected distribution. Due to
-                normalization, the maximum value in binary classification is then also 1 - proj_eps. Setting this to
-                a small, non-negative value helps prevent numerical instability if the optimization is not done to
-                convergence.
+            proj_eps: Every probability value in the projected distribution is clamped to the interval
+                [proj_eps, 1 - proj_eps]. Default is 0. Setting this to a small, non-negative value helps prevent
+                numerical instability if the optimization is not done to convergence.
             solver_kwargs: Any keyword arguments to be passed to the cvxpy solver. The default configuration is::
 
                 {
@@ -97,15 +94,15 @@ class ProjectionLoss(FairnessLoss):
         Compute the statistical distance between `pred` and `proj` in cvxpy. Used for the convex optimization problem.
 
         Args:
-            pred (cp.Parameter): The predicted distribution in shape (N,2). As we assume binary classification, the
+            pred: The predicted distribution in shape (N,2). As we assume binary classification, the
                 first column is the probability of the negative class and the second column is the probability of the
                 positive class.
-            proj (cp.Variable): The projected distribution in shape (N,2). As we assume binary classification, the
+            proj: The projected distribution in shape (N,2). As we assume binary classification, the
                 first column is the probability of the negative class and the second column is the probability of the
                 positive class.
 
         Returns:
-            cp.Expression: The statistical distance in shape (1,).
+            The statistical distance in shape (1,).
         """
 
         raise NotImplementedError
@@ -117,54 +114,54 @@ class ProjectionLoss(FairnessLoss):
         distance between the predictions and the projection (with respect to the predictions).
 
         Args:
-            pred (torch.Tensor): The predicted distribution in shape (N,1). As we assume binary classification, this is
+            pred: The predicted distribution in shape (N,1). As we assume binary classification, this is
                 the probability of the positive class.
-            proj (torch.Tensor): The projected distribution in shape (N,2). As we assume binary classification, the
+            proj: The projected distribution in shape (N,2). As we assume binary classification, the
                 first column is the probability of the negative class and the second column is the probability of the
                 positive class.
 
         Returns:
-            torch.Tensor: The statistical distance as a scalar tensor.
+            The statistical distance as a scalar tensor.
         """
 
         raise NotImplementedError
 
-    def torch_distance_with_logits(self, pred, proj):
+    def torch_distance_with_logits(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
         """
         A more numerically stable alternative method to
         :py:meth:`~fairret.loss.projection.ProjectionLoss.torch_distance`, where `pred` is assumed to be logits.
 
         Args:
-            pred (torch.Tensor): The predicted distribution as logits, in shape (N,1). As we assume binary
+            pred: The predicted distribution as logits, in shape (N,1). As we assume binary
                 classification, this is the logit of the probability of the positive class.
-            proj (torch.Tensor): The projected distribution in shape (N,2) as probabilities. As we assume binary
+            proj: The projected distribution in shape (N,2) as probabilities. As we assume binary
                 classification, the first column is the probability of the negative class and the second column is the
                 probability of the positive class.
 
         Returns:
-            torch.Tensor: The statistical distance as a scalar tensor.
+            The statistical distance as a scalar tensor.
         """
 
         return self.torch_distance(torch.sigmoid(pred), proj)
 
-    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=True, **stat_kwargs: Any
-                ) -> torch.Tensor:
+    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, pred_as_logit: bool = True,
+                **stat_kwargs: Any) -> torch.Tensor:
         """
         Calculate the fairness loss by projecting the predictions onto the fair set and computing the statistical
         distance between the predictions and the projection.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+            pred: Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
                 classification or regression.
-            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            sens: Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: All arguments used by the statistic that this loss minimizes.
-            pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are
+            pred_as_logit: Whether the `pred` tensor should be interpreted as logits. Though most losses are
                 will simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses benefit from improved
                 numerical stability if they handle the conversion themselves.
             **stat_kwargs: All keyword arguments used by the statistic that this loss computes.
 
         Returns:
-            torch.Tensor: The calculated loss as a scalar tensor.
+            The calculated loss as a scalar tensor.
         """
 
         if pred_as_logit:
@@ -190,14 +187,13 @@ class ProjectionLoss(FairnessLoss):
         Initialize the cvxpy problem for the convex optimization.
 
         Args:
-            batch_size (int): The batch size of the predictions.
-            constraint_dim (int): The dimension of the linear fairness constraint, typically the number of sensitive
+            batch_size: The batch size of the predictions.
+            constraint_dim: The dimension of the linear fairness constraint, typically the number of sensitive
                 features.
 
         Returns:
-            Tuple[cp.Parameter, cp.Variable, cp.Parameter, cp.Parameter]: A tuple of the parameters and variables for
-                the cvxpy problem, in the order (pred, proj, intercept, slope).
-            cp.Problem: The cvxpy problem to be solved.
+            A tuple of the parameters and variables for the cvxpy problem, in the order (pred, proj, intercept, slope).
+            The cvxpy problem to be solved.
         """
 
         pred = cp.Parameter((batch_size, 2), nonneg=True)
@@ -220,25 +216,25 @@ class ProjectionLoss(FairnessLoss):
     def _batch_size(self) -> int:
         """
         Returns:
-            int: The batch size of the first batch that was used to initialize the cvxpy problem.
+            The batch size of the first batch that was used to initialize the cvxpy problem.
         """
 
         return self._pred_cvxpy.shape[0]
 
-    def _fit_cvxpy(self, pred, sens, *stat_args, **stat_kwargs) -> torch.Tensor:
+    def _fit_cvxpy(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, **stat_kwargs: Any) -> torch.Tensor:
         """
         Iterate over the cvxpy problem to find the projection of the predictions onto the fair set.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, 2)`. The predicted distribution in shape (N,2). As we
+            pred: Predictions of shape :math:`(N, 2)`. The predicted distribution in shape (N,2). As we
                 assume binary classification, the first column is the probability of the negative class and the second
                 column is the probability of the positive class.
-            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            sens: Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: All arguments used by the statistic that this loss minimizes.
             **stat_kwargs: All keyword arguments used by the statistic that this loss computes.
 
         Returns:
-            torch.Tensor: The projection of the predictions onto the fair set in the shape (N, 2).
+            The projection of the predictions onto the fair set in the shape (N, 2).
         """
 
         pred = pred.detach()
@@ -304,16 +300,16 @@ class KLProjectionLoss(ProjectionLoss):
     projection of the predictions.
     """
 
-    def cvxpy_distance(self, pred, proj):
+    def cvxpy_distance(self, pred: cp.Parameter, proj: cp.Variable) -> cp.Expression:
         return cp.sum(cp.kl_div(proj, pred)) / proj.shape[0]
 
-    def torch_distance(self, pred, proj):
+    def torch_distance(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
         pred = torch.cat([1 - pred, pred], dim=-1)
         log_pred = torch.log(pred)
         dist = torch.nn.functional.kl_div(log_pred, proj, reduction='batchmean')
         return dist
 
-    def torch_distance_with_logits(self, pred, proj):
+    def torch_distance_with_logits(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
         # Use log-sigmoid operation for numerical stability
         log_sigmoid_fn = torch.nn.LogSigmoid()
         # Log-probabilities of the Bernoulli distribution. We use that 1 - sigmoid(x) = sigmoid(-x)
@@ -331,11 +327,11 @@ class JensenShannonProjectionLoss(ProjectionLoss):
     projection of the predictions.
     """
 
-    def cvxpy_distance(self, pred, proj):
+    def cvxpy_distance(self, pred: cp.Parameter, proj: cp.Variable) -> cp.Expression:
         avg = (proj + pred) / 2
         return cp.sum(cp.kl_div(proj, avg)) + cp.sum(cp.kl_div(pred, avg)) / (2 * proj.shape[0])
 
-    def torch_distance(self, pred, proj):
+    def torch_distance(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
         pred = torch.cat([1 - pred, pred], dim=-1)
         avg = (pred + proj) / 2
         log_avg = torch.log(avg)
@@ -351,10 +347,10 @@ class TotalVariationProjectionLoss(ProjectionLoss):
     projection of the predictions.
     """
 
-    def cvxpy_distance(self, pred, proj):
+    def cvxpy_distance(self, pred: cp.Parameter, proj: cp.Variable) -> cp.Expression:
         return 1 / 2 * cp.sum(cp.abs(proj - pred)) / proj.shape[0]
 
-    def torch_distance(self, pred, proj):
+    def torch_distance(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
         pred = torch.cat([1 - pred, pred], dim=-1)
         dist = torch.sum(torch.abs(pred - proj), dim=-1).mean()
         return dist
@@ -366,10 +362,10 @@ class ChiSquaredProjectionLoss(ProjectionLoss):
     the predictions.
     """
 
-    def cvxpy_distance(self, pred, proj):
+    def cvxpy_distance(self, pred: cp.Parameter, proj: cp.Variable) -> cp.Expression:
         return cp.sum(cp.power(proj, 2) / pred - 1) / proj.shape[0]
 
-    def torch_distance(self, pred, proj):
+    def torch_distance(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
         pred = torch.cat([1 - pred, pred], dim=-1)
         dist = torch.sum(proj ** 2 / pred, dim=-1).mean()
         return dist
@@ -381,10 +377,10 @@ class SquaredEuclideanProjectionLoss(ProjectionLoss):
     projection of the predictions.
     """
 
-    def cvxpy_distance(self, pred, proj):
+    def cvxpy_distance(self, pred: cp.Parameter, proj: cp.Variable) -> cp.Expression:
         return cp.sum((proj - pred) ** 2) / proj.shape[0]
 
-    def torch_distance(self, pred, proj):
+    def torch_distance(self, pred: torch.Tensor, proj: torch.Tensor) -> torch.Tensor:
         proj = proj[:, 1]
         dist = ((pred - proj) ** 2).mean()
         return dist

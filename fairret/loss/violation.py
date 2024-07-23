@@ -17,7 +17,7 @@ class ViolationLoss(FairnessLoss):
     def __init__(self, statistic: Statistic):
         """
         Args:
-            statistic (Statistic): The statistic that should be used to calculate the violation vector. Preferably, a
+            statistic: The statistic that should be used to calculate the violation vector. Preferably, a
                 LinearFractionalStatistic is provided, as this allows for a straightforward calculation of the target
                 statistic as the overall statistic.
         """
@@ -26,39 +26,39 @@ class ViolationLoss(FairnessLoss):
         self.statistic = statistic
 
     @abc.abstractmethod
-    def penalize_violation(self, violation) -> torch.Tensor:
+    def penalize_violation(self, violation: torch.Tensor) -> torch.Tensor:
         """
         Penalize the fairness violation.
 
         Args:
-            violation (torch.Tensor): The violation vector, i.e. the vector of gaps between the statistics per sensitive
-            feature and the target statistic.
+            violation: The violation vector, i.e. the vector of gaps between the statistics per sensitive feature and
+                the target statistic.
 
         Returns:
-            torch.Tensor: A scalar tensor.
+            A scalar tensor.
         """
         raise NotImplementedError
 
-    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args, pred_as_logit=True,
+    def forward(self, pred: torch.Tensor, sens: torch.Tensor, *stat_args: Any, pred_as_logit: bool = True,
                 target_statistic: Optional[torch.Tensor] = None, **stat_kwargs: Any) -> torch.Tensor:
         """
         Calculate the violation vector in relation to the `target_statistic` and penalize this violation using the
         :py:meth:`~fairret.loss.violation.ViolationLoss.penalize_violation` method implemented by the subclass.
 
         Args:
-            pred (torch.Tensor): Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
+            pred: Predictions of shape :math:`(N, 1)`, as we assume to be performing binary
                 classification or regression.
-            sens (torch.Tensor): Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
+            sens: Sensitive features of shape :math:`(N, S)` with `S` the number of sensitive features.
             *stat_args: All arguments used by the statistic that this loss minimizes.
-            pred_as_logit (bool): Whether the `pred` tensor should be interpreted as logits. Though most losses are
+            pred_as_logit: Whether the `pred` tensor should be interpreted as logits. Though most losses are
                 will simply take the sigmoid of `pred` if `pred_as_logit` is `True`, some losses benefit from improved
                 numerical stability if they handle the conversion themselves.
-            target_statistic (Optional[torch.Tensor]): The target statistic as a scalar tensor. If not provided for a
+            target_statistic: The target statistic as a scalar tensor. If not provided for a
                 LinearFractionalStatistic, the overall statistic will be used by default.
             **stat_kwargs: All keyword arguments used by the statistic that this loss computes.
 
         Returns:
-            torch.Tensor: The calculated loss as a scalar tensor.
+            The calculated loss as a scalar tensor.
         """
 
         if pred_as_logit:
@@ -91,13 +91,13 @@ class NormLoss(ViolationLoss):
     Fairness loss that penalizes the p-norm of the violation vector.
     """
 
-    def __init__(self, statistic: Statistic, p=1):
+    def __init__(self, statistic: Statistic, p: int = 1):
         """
         Args:
-            statistic (Statistic): The statistic that should be used to calculate the violation vector. Preferably, a
+            statistic: The statistic that should be used to calculate the violation vector. Preferably, a
                 LinearFractionalStatistic is provided, as this allows for a straightforward calculation of the target
                 statistic as the overall statistic.
-            p (int): The order of the norm. Default is 1.
+            p: The order of the norm. Default is 1.
         """
 
         super().__init__(statistic)
@@ -108,7 +108,6 @@ class NormLoss(ViolationLoss):
 
 
 class LSELoss(ViolationLoss):
-
     """
     Fairness loss that penalizes the log-sum-exp of the violation vector. The log-sum-exp is a smooth approximation of
     the maximum function, hence it approximates the maximum violation (or its :math:`\\Vert \\cdot \\Vert_\\infty` norm)

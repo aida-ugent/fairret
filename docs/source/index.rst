@@ -24,21 +24,22 @@ These can then be optimized together with e.g. the binary cross-entropy error su
 
    This project is under active development!
 
+Explore:
+
 .. toctree::
-   :maxdepth: 3
-   :titlesonly:
-   :caption: Contents:
+   :maxdepth: 1
 
    loss
    statistic
    metric
+   examples
 
 
 
 Citation
 --------
 
-If you have found fairret useful in your research, please cite our ICLR 2024 paper_ :
+If you have found fairret useful in your research, please cite our ICLR 2024 paper_:
 
 .. _paper: https://openreview.net/pdf?id=NnyD0Rjx2B
 
@@ -48,8 +49,7 @@ If you have found fairret useful in your research, please cite our ICLR 2024 pap
    title={fairret: a Framework for Differentiable Fairness Regularization Terms},
    author={Buyl, Maarten and Defrance, Marybeth and De Bie, Tijl},
    booktitle={International Conference on Learning Representations},
-   year={2024}
-}
+   year={2024}}
 
 Indices and tables
 ----------------------

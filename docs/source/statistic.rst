@@ -1,14 +1,16 @@
-Fairness statistics
+:tocdepth: 2
+
+Statistics
 ============================
 
-Base statistic definition
+Generic Statistic
 ----------------------------
 .. automodule:: fairret.statistic.base
     :members:
     :undoc-members:
     :show-inheritance:
 
-Linear-fractional statistics
+Linear-fractional Statistics
 ----------------------------
 
 .. automodule:: fairret.statistic.linear_fractional
